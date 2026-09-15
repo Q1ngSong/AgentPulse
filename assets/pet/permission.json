@@ -1,0 +1,45 @@
+{
+  "frames": 50,
+  "unique_frames": 38,
+  "frame_ms": 80,
+  "source_keyframes": 4,
+  "method": "bidirectional DIS optical flow; confirmed original art",
+  "canvas": [
+    384,
+    384
+  ],
+  "columns": 10,
+  "body_start": 5,
+  "body_end": 44,
+  "shared_endpoint_sha256": "384f7aca595b1de835b5c6336e6ae8a8383f46aba1b498009a90b6e37f6e02f7",
+  "anchors": [
+    [
+      5,
+      0
+    ],
+    [
+      14,
+      2
+    ],
+    [
+      20,
+      0
+    ],
+    [
+      24,
+      1
+    ],
+    [
+      28,
+      0
+    ],
+    [
+      37,
+      3
+    ],
+    [
+      44,
+      0
+    ]
+  ]
+}
