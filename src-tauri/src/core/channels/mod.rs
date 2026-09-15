@@ -11,7 +11,6 @@ use super::events::Context;
 use super::paths::Paths;
 
 pub mod desktop;
-pub mod pet;
 pub mod feishu;
 pub mod http;
 pub mod sound;
@@ -62,7 +61,6 @@ impl Registry {
     /// 内置提醒方式。
     pub fn default_for(paths: &Paths) -> Self {
         let mut r = Self::empty();
-        r.register("pet", Box::new(pet::Pet { paths: paths.clone() }));
         r.register("desktop", Box::new(desktop::Desktop { paths: paths.clone() }));
         r.register("sound", Box::new(sound::Sound { paths: paths.clone() }));
         r.register("feishu", Box::new(feishu::Feishu));

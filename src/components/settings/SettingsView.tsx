@@ -16,7 +16,7 @@ import type { ConfirmFn } from "@/App";
 import { useIntegration } from "@/components/common/useIntegration";
 
 type Tab = "integrations" | "templates" | "general";
-const HOOK_LABEL: Record<string, string> = { permission_request: "请求权限", task_complete: "任务完成", user_prompt: "发新消息", tool_start: "开始执行", tool_done: "工具执行" };
+const HOOK_LABEL: Record<string, string> = { permission_request: "请求权限", task_complete: "任务完成", user_prompt: "发新消息", tool_done: "工具执行" };
 
 function preview(tpl: Template | undefined, event: EventKey, agent: string) {
   const ctx: Record<string, string> = { agent, session: "修复登录页 bug", project: "my-app", time: new Date().toLocaleTimeString(), detail: event === "permission_request" ? "Bash: npm install" : "已修改 2 个文件，测试全部通过" };
@@ -119,7 +119,7 @@ export const SettingsView = forwardRef<SettingsHandle, { state: State; tool: Too
       )}
 
       {tab === "general" && (<>
-        <div className="px-0.5 text-xs text-muted-foreground">退出 App 后仍可接收后台通知；主动打开 App 才会恢复主界面和桌宠。</div>
+        <div className="px-0.5 text-xs text-muted-foreground">退出 App 后仍可接收后台通知；主动打开 App 才会恢复主界面。</div>
         <RowCard icon={<Power className="h-4 w-4" />} title="开机自启" desc="登录后自动在后台运行，Hook 弹窗不需要先手动打开 App" right={<Switch checked={!!autoLaunch} onCheckedChange={toggleAutoLaunch} />} />
         <RowCard icon={<RefreshCw className="h-4 w-4" />} title={`版本 ${version ?? ""}`} desc="每天自动检查一次；更新包来自 GitHub Releases，安装后自动重启" right={<Button variant="outline" size="sm" onClick={() => checkForUpdate(false)}>检查更新</Button>} />
         <RowCard icon={<FolderOpen className="h-4 w-4" />} title="数据目录" desc={`配置、提醒记录、声音库、备份都在 ${state.meta.data_dir}`} right={<Button variant="outline" size="sm" onClick={() => api.reveal("data")}>打开</Button>} />

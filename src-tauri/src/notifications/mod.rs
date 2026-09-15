@@ -102,7 +102,7 @@ extern "C" fn on_launch(from_notification: c_int) {
         let handle = app.clone();
         let _ = app.run_on_main_thread(move || {
             if from_notification != 0 || crate::background_launch() || !should_show_main_on_reopen() {
-                crate::app_log("后台通知模式：主界面与桌宠保持关闭");
+                crate::app_log("后台通知模式：主界面保持关闭");
                 let _ = handle.set_dock_visibility(false);
             } else {
                 crate::show_main(&handle);

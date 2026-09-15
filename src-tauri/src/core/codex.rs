@@ -311,7 +311,7 @@ mod tests {
     #[test]
     fn review_accepts_all_current_codex_api_event_names() {
         let (_dir, home, _paths) = setup();
-        let events = ["permissionRequest", "stop", "userPromptSubmit", "preToolUse", "postToolUse"];
+        let events = ["permissionRequest", "stop", "userPromptSubmit", "postToolUse"];
         let hooks = events.iter().map(|event| hook(&home, event, event, false)).collect();
         let review = parse_hooks(listing(hooks), &home, COMMAND).unwrap();
         assert_eq!(review.hooks.len(), events.len());

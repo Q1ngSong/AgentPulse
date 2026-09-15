@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
 use super::paths::{atomic_write_json, chmod_private, Paths};
-use super::pet::{self, PetConfig};
+static CONFIGURATION: std::sync::Mutex<()> = std::sync::Mutex::new(());
+/// 串行执行面板的配置读取、修改与保存，避免并发操作覆盖其他设置。
+pub(crate) fn configuration_lock() -> std::sync::MutexGuard<'static, ()> { CONFIGURATION.lock().unwrap() }
 
 pub const EVENT_KEYS: [&str; 2] = ["permission_request", "task_complete"];
 pub const TOOLS: [&str; 2] = ["claude", "codex"];
@@ -75,8 +77,6 @@ pub struct Config {
     #[serde(default)]
     pub templates: Map<String, Value>,
     pub tools: BTreeMap<String, Tool>,
-    #[serde(default)]
-    pub pets: Vec<PetConfig>,
 }
 
 impl Config {
@@ -115,7 +115,7 @@ fn default_targets() -> Vec<Target> {
 }
 
 pub fn default_config() -> Config {
-    let mut cfg = Config { templates: Map::new(), tools: BTreeMap::new(), pets: Vec::new() };
+    let mut cfg = Config { templates: Map::new(), tools: BTreeMap::new() };
     for e in EVENT_KEYS {
         cfg.templates.insert(e.into(), serde_json::to_value(default_template(e)).unwrap());
     }
@@ -166,7 +166,6 @@ pub fn load_config(paths: &Paths) -> io::Result<Config> {
     for tool in TOOLS {
         cfg.tools.entry(tool.into()).or_default().targets.retain(|t| TARGET_TYPES.contains(&t.kind.as_str()));
     }
-    pet::validate_configs(&cfg.pets).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
     Ok(cfg)
 }
 
@@ -195,7 +194,6 @@ pub fn save_config(paths: &Paths, cfg: &Config) -> io::Result<()> {
     for tool in cfg.tools.values() {
         validate_targets(&tool.targets).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
     }
-    pet::validate_configs(&cfg.pets).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
     atomic_write_json(&paths.config(), cfg)?;
     chmod_private(&paths.config());
     Ok(())
@@ -215,7 +213,7 @@ mod tests {
         save_config(&p, &cfg).unwrap();
         let saved = fs::read(p.config()).unwrap();
         let raw: Value = serde_json::from_slice(&saved).unwrap();
-        assert_eq!(raw.as_object().unwrap().len(), 3, "保存 templates、tools 和 pets");
+        assert_eq!(raw.as_object().unwrap().len(), 2, "保存 templates 和 tools");
         assert!(raw.get("version").is_none());
         assert_eq!(load_config(&p).unwrap(), cfg);
         assert_eq!(fs::read(p.config()).unwrap(), saved);
@@ -315,21 +313,21 @@ mod tests {
     }
 
     #[test]
-    fn pets_are_independent_and_invalid_pet_config_never_overwrites_saved_data() {
+    fn removed_pet_settings_do_not_block_existing_notification_config() {
         let (_d, p) = temp_paths();
-        let mut cfg = default_config();
-        cfg.pets.push(serde_json::from_value(json!({"id":"pet-1","number":1,"sources":[],"events":[]})).unwrap());
-        save_config(&p, &cfg).unwrap();
-        assert_eq!(load_config(&p).unwrap(), cfg);
+        let mut raw = serde_json::to_value(default_config()).unwrap();
+        raw["pets"] = json!([{"id":"pet-1","number":1,"enabled":true,"sources":[]}]);
+        raw["tools"]["claude"]["targets"].as_array_mut().unwrap()
+            .push(json!({"id":"fs", "type":"feishu", "name":"飞书", "enabled":true, "events":["task_complete"], "secret":"keep", "webhook":"https://example.test/hook"}));
+        atomic_write_json(&p.config(), &raw).unwrap();
         let original = fs::read(p.config()).unwrap();
-        cfg.pets[0].id = "../unsafe".into();
-        assert_eq!(save_config(&p, &cfg).unwrap_err().kind(), io::ErrorKind::InvalidInput);
-        assert_eq!(fs::read(p.config()).unwrap(), original);
-        atomic_write_json(&p.config(), &cfg).unwrap();
-        let invalid = fs::read(p.config()).unwrap();
-        assert_eq!(load_config(&p).unwrap_err().kind(), io::ErrorKind::InvalidData);
-        assert_eq!(fs::read(p.config()).unwrap(), invalid);
-        let card: Target = serde_json::from_value(json!({"id":"pet-1","type":"pet"})).unwrap();
-        assert!(validate_targets(&[card]).is_err(), "桌宠不再属于工具提醒卡片");
+        let cfg = load_config(&p).unwrap();
+        assert_eq!(cfg.tool_targets("claude")[2].str("secret"), "keep");
+        assert_eq!(fs::read(p.config()).unwrap(), original, "读取时不改写旧配置");
+        save_config(&p, &cfg).unwrap();
+        let saved: Value = serde_json::from_slice(&fs::read(p.config()).unwrap()).unwrap();
+        assert!(saved.get("pets").is_none());
+        assert_eq!(saved["tools"], raw["tools"]);
+        assert_eq!(saved["templates"], raw["templates"]);
     }
 }

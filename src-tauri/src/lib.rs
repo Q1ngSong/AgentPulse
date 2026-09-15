@@ -5,13 +5,10 @@ pub mod commands;
 pub mod core;
 pub mod ipc;
 pub mod overlay;
-pub mod pet;
-pub mod pet_assets;
 #[cfg(target_os = "macos")]
 mod notifications;
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -19,9 +16,6 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 use crate::core::paths::Paths;
 
-// 冷启动先不创建交互窗口，等启动来源明确后再恢复；通知和 Hook 唤醒均保持后台。
-static INTERACTIVE: AtomicBool = AtomicBool::new(false);
-pub(crate) fn interactive() -> bool { INTERACTIVE.load(Ordering::Acquire) }
 pub(crate) fn background_launch() -> bool {
     std::env::args_os().any(|arg| arg == core::channels::desktop::BACKGROUND_ARG)
 }
@@ -46,7 +40,6 @@ pub fn app_log(msg: &str) {
 /// 后者在某些 macOS 版本上重建的 Dock 图标是系统默认的占位图标，不是 App 自己的图标；
 /// set_dock_visibility 底层走的是更老的 TransformProcessType，图标不会丢。
 fn show_main(app: &AppHandle) {
-    if !INTERACTIVE.swap(true, Ordering::AcqRel) { pet::restore(app.clone()); }
     #[cfg(target_os = "macos")]
     let _ = app.set_dock_visibility(true);
     if let Some(w) = app.get_webview_window("main") {
@@ -74,15 +67,13 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             commands::get_state, commands::save_tool_targets, commands::copy_target, commands::save_templates,
-            commands::test_target, commands::save_pets, commands::test_pet, commands::simulate, commands::list_sounds, commands::upload_sound,
+            commands::test_target, commands::simulate, commands::list_sounds, commands::upload_sound,
             commands::rename_sound, commands::delete_sound, commands::preview_sound,
             commands::install_integration, commands::uninstall_integration, commands::read_events, commands::clear_events,
             commands::review_codex_hooks, commands::trust_codex_hooks,
             commands::reveal, commands::activate_app,
             commands::upload_tool_icon, commands::delete_tool_icon,
             commands::get_auto_launch, commands::set_auto_launch,
-            pet_assets::inspect_pet_folder, pet_assets::load_pet_frames,
-            pet::get_pet_state, pet::close_pet, pet::activate_pet_source,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

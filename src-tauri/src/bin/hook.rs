@@ -6,7 +6,7 @@
 //! `--install <工具>` / `--uninstall <工具>` 是命令行接入（子命令里只有这两个会往 stdout 打印结果）。
 use std::io::{Read, Write};
 
-use agentpulse_lib::core::{dispatch, events, log, paths::Paths, pet, platform, queue, runtime::Runtime};
+use agentpulse_lib::core::{dispatch, events, log, paths::Paths, platform, queue, runtime::Runtime};
 use serde_json::Value;
 
 fn run() -> Result<(), String> {
@@ -36,18 +36,6 @@ fn run() -> Result<(), String> {
     // 在标题查找和渠道发送前只取一次时间，后续异步投递仍使用同一事件顺序。
     let observed_at = log::now();
     let name = payload.get("hook_event_name").and_then(Value::as_str).unwrap_or("");
-    if matches!(name, "UserPromptSubmit" | "PreToolUse" | "PostToolUse") {
-        let project = payload.get("cwd").and_then(Value::as_str).and_then(|p| std::path::Path::new(p).file_name()).and_then(|s| s.to_str()).unwrap_or("");
-        let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or("");
-        pet::publish(&paths, &pet::Update {
-            id: uuid::Uuid::new_v4().to_string(), phase: pet::Phase::Working,
-            animations: None, agent: agent.clone(), host: platform::host_bundle_id(),
-            session: payload.get("session_id").and_then(Value::as_str).unwrap_or("").into(),
-            hook_event: name.into(), tool_use_id: events::tool_use_id(&payload), tool_input_key: events::tool_input_key(&payload), observed_at,
-            title: format!("{} · {}", events::agent_name(&agent), project),
-            detail: if name == "PreToolUse" { format!("正在使用 {tool}") } else if name == "PostToolUse" { format!("刚完成 {tool}，等待后续动作") } else { "已收到任务，工作中".into() },
-        });
-    }
     if name == "PreToolUse" { return Ok(()); }
     if name == "PostToolUse" {
         // 每次工具调用都会触发：只有这个对话有等待中的权限请求时才记录，其余直接退出
@@ -61,15 +49,6 @@ fn run() -> Result<(), String> {
     }
     if let Some((event, mut ctx)) = events::normalize(&agent, &payload, &rt.home) {
         ctx.observed_at = observed_at;
-        if name == "Stop" {
-            pet::publish(&paths, &pet::Update {
-                id: uuid::Uuid::new_v4().to_string(),
-                phase: pet::Phase::Sleeping,
-                animations: None, agent: agent.clone(), host: ctx.host_bundle.clone(), session: ctx.session_id.clone().unwrap_or_default(),
-                hook_event: name.into(), tool_use_id: ctx.tool_use_id.clone(), tool_input_key: ctx.tool_input_key.clone(), observed_at,
-                title: format!("{} · {}", ctx.agent, ctx.session), detail: ctx.detail.clone(),
-            });
-        }
         dispatch::dispatch(&rt, &agent, &event, &ctx, None, "hook", Some(&payload), None).map_err(|e| e.to_string())?;
     }
     Ok(())

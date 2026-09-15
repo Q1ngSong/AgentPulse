@@ -64,7 +64,7 @@ fn harness() -> Harness {
     let behaviour: Behaviour = Arc::new(Mutex::new(Box::new(|_, _| Ok(Some("ok".into())))));
     let mut channels = Registry::empty();
     // 同一个假渠道注册成三种 kind：desktop / sound 用来验证 dispatch 的发送顺序，wxtest 是其余用例用的
-    for kind in ["wxtest", "desktop", "sound", "pet"] {
+    for kind in ["wxtest", "desktop", "sound"] {
         channels.register(kind, Box::new(FakeChannel { sent: sent.clone(), behaviour: behaviour.clone() }));
     }
     let sleeps: Arc<Mutex<Vec<f64>>> = Arc::default();
@@ -845,52 +845,4 @@ fn context_roundtrips_through_queue_file() {
     let q = queue::load_queue(&h.rt.paths);
     assert_eq!(q[0].ctx, ctx);
     assert_eq!(queue::queued_per_agent(&h.rt.paths)["claude"], 1);
-}
-
-#[test]
-fn pet_respects_selected_agent_enabled_events_and_coexists_with_tool_targets() {
-    let h=harness();
-    let pet=serde_json::from_value(json!({"id":"pet-1","number":1,"enabled":true,"events":["permission_request"],"sources":[{"agent":"claude","host":""}]})).unwrap();
-    let sound:Target=serde_json::from_value(json!({"id":"sound","type":"sound","enabled":true,"events":["permission_request","task_complete"]})).unwrap();
-    let mut cfg=cfg_with(&h,&[sound]);
-    cfg.pets.push(pet);
-    cfg.set_tool_targets("codex",&[]);
-    config::save_config(&h.rt.paths,&cfg).unwrap();
-    let loaded=config::load_config(&h.rt.paths).unwrap();assert_eq!(loaded,cfg);
-    for (agent,event,count) in [("claude","permission_request",2),("claude","task_complete",1),("codex","permission_request",0)] {
-        let result=dispatch::dispatch(&h.rt,agent,event,&sample_context(agent,event),Some(&cfg),"simulate",None,None).unwrap();
-        assert_eq!(result["results"].as_array().unwrap().len(),count);
-    }
-    cfg.pets[0].enabled=false;cfg.set_tool_targets("claude",&[]);
-    let result=dispatch::dispatch(&h.rt,"claude","permission_request",&sample_context("claude","permission_request"),Some(&cfg),"simulate",None,None).unwrap();
-    assert!(result["results"].as_array().unwrap().is_empty());
-}
-
-#[test]
-fn numbered_pets_route_multiple_apps_and_agents_once_per_selected_pet() {
-    let h = harness();
-    let mut cfg = cfg_with(&h, &[]);
-    cfg.pets = serde_json::from_value(json!([
-        {"id":"pet-1","number":1,"events":["task_complete"],"sources":[
-            {"agent":"claude","host":TERMINAL},{"agent":"claude","host":VSCODE},{"agent":"codex","host":VSCODE}]},
-        {"id":"pet-2","number":2,"events":["task_complete"],"sources":[
-            {"agent":"codex","host":""},{"agent":"codex","host":VSCODE}]},
-        {"id":"pet-3","number":3,"events":["task_complete"],"sources":[]}
-    ])).unwrap();
-    config::save_config(&h.rt.paths, &cfg).unwrap();
-    for (agent, host, expected) in [
-        ("claude", TERMINAL, vec!["pet-1"]), ("claude", VSCODE, vec!["pet-1"]),
-        ("claude", CHROME, vec![]), ("codex", VSCODE, vec!["pet-1", "pet-2"]),
-        ("codex", TERMINAL, vec!["pet-2"]), ("codex", "", vec!["pet-2"]),
-    ] {
-        let mut ctx = sample_context(agent, "task_complete");
-        ctx.host_bundle = host.into();
-        let result = dispatch::dispatch(&h.rt, agent, "task_complete", &ctx, None, "hook", None, None).unwrap();
-        let sent: Vec<_> = result["results"].as_array().unwrap().iter().map(|r| r["target_id"].as_str().unwrap()).collect();
-        assert_eq!(sent, expected, "{agent} in {host}");
-    }
-    let ctx = sample_context("codex", "task_complete");
-    let result = dispatch::dispatch(&h.rt, "codex", "task_complete", &ctx, Some(&cfg), "test", None, Some(vec![cfg.pets[0].target()])).unwrap();
-    assert_eq!(result["results"].as_array().unwrap().len(), 1, "单宠测试不向其他桌宠广播");
-    assert_eq!(result["results"][0]["target_id"], "pet-1");
 }

@@ -1,5 +1,5 @@
 //! 屏幕弹窗：通过本地 socket 交给运行中的 AgentPulse App 显示（悬浮窗 / 系统通知）。
-//! App 没在运行时只启动后台通知模式，不打开主界面或桌宠；仍连不上则报错。
+//! App 没在运行时只启动后台通知模式，不打开主界面；仍连不上则报错。
 use std::io::{BufRead, BufReader, Write};
 use std::process::Stdio;
 use std::time::{Duration, Instant};

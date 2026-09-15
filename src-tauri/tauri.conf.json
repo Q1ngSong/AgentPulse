@@ -43,7 +43,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdDRDlBOUUxRENFOTRGOTcKUldTWFQrbmM0YW5aZkRaYjVPMXZjUTBkaXpQRnlPeGJISXNYdWFmbEZ6S0xyTzJlN1AzeDFkMloK",
       "endpoints": [
-        "https://github.com/OWNER/agentpulse/releases/latest/download/latest.json"
+        "https://github.com/Q1ngSong/AgentPulse/releases/latest/download/latest.json"
       ]
     }
   }

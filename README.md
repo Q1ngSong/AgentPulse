@@ -39,31 +39,6 @@ AgentPulse 是 Claude Code / Codex 的 macOS 提醒工具。任务完成或请�
 
 ## 提醒方式
 
-### 猫咪桌宠
-
-打开顶部的「桌宠」面板，添加带独立编号的桌宠。在「同步消息来源」中勾选 Agent 和来源 App：一只桌宠可以汇聚多个 App、多个 Agent 的消息；也可以为它们分别配置桌宠。勾选「所有来源 App」会同步该 Agent 的全部来源，未勾选任何来源时不接收消息。
-
-| 状态 | 动作 |
-|---|---|
-| 工作中 | 坐在草垫上的椅子里，在圆桌前操作电脑 |
-| 休息中 | 头向后仰，双手搭到椅背后睡觉 |
-| 等待权限 | 举起写着「奏」的牌子 |
-| 任务完成 | 把一叠稿纸放到桌旁的地面，等你查看 |
-
-动画沿用同一套手绘关键帧，每段补间至 50 帧。卡片中可为四种状态分别指定 PNG 文件夹、帧间隔和进入／循环／退出片段。默认进入 1–5 帧、循环 6–45 帧、退出 46–50 帧；任务完成默认停在循环末帧等待。状态变化先播完当前循环，再播放退出和下一状态的进入片段。
-
-文件夹使用从 `0001.png` 开始连续编号的 PNG。输入绝对路径后点击「检查文件夹」读取帧数；留空使用内置素材。四个状态的进入首帧和退出末帧须相同。目录和格式见 [桌宠素材说明](assets/pet/README.md)。
-
-点击猫咪，返回**第一条待处理消息的来源 App**。清理该 App 当时已有的桌宠提醒，其他 App 和随后到达的新消息继续保留。没有可识别来源时不跳转。按住猫咪中央即可拖动，右键菜单可返回来源或关闭当前桌宠；空闲时只保留动画和编号，不显示「休息中」气泡。
-
-工作状态来自实际 Hook：发出新任务、开始使用工具、工具执行完、请求权限或任务结束。已有用户需要在「工具接入」中重新接入并新开会话，才能收到新增的开始执行事件。界面只显示最近收到的活动，不推测任务进度；工具异常退出而未发送结束事件时，状态可能停留在工作中。
-
-Codex 的权限提示会等待 2 秒再显示为「权限处理中」，显示 5 秒后收起；期间对应工具已执行完或任务已结束，就提前清除。后续执行结果会清除对应请求，任务结束也会清理该会话的旧权限提示。内部自动批准和人工批准共用这套状态更新；收起提示不表示已经批准，没有后续活动时只保留桌宠动画，不继续举牌或宣称正在工作。
-
-桌宠只接收开启后到达的消息。停用或关闭只清空这只桌宠的队列；取消同步来源，只清理该桌宠来自相应来源的消息。退出 App 清空临时队列，原有提醒记录和远程队列不受影响。
-
-运行开发服务后，可打开 `http://localhost:3000/pet.html?demo` 查看四种动画和多来源点击演示。演示页使用模拟数据，不跳转真实 App。
-
 ### 配置卡片
 
 <p align="center"><img src="assets/channels-light.svg" alt="当前可添加的四类提醒方式：屏幕弹窗、提示音、飞书和微信测试号" width="100%"></p>
@@ -101,7 +76,9 @@ Claude Code 与 Codex 的提醒方式分别配置，也可以把一张卡片复�
 
 <p align="center"><img src="assets/config-flow.svg" alt="使用步骤：在设置中接入工具，分别配置提醒，再测试并新开 Claude Code / Codex 会话" width="100%"></p>
 
-已有本机构建的 App 时：
+先从 [GitHub Release](https://github.com/Q1ngSong/AgentPulse/releases/latest) 下载 Apple Silicon 安装包，或从源码构建。图文指引见 [使用指南](https://q1ngsong.github.io/AgentPulse/guide/)。
+
+安装后：
 
 1. 将 `AgentPulse.app` 放到固定位置（例如 `/Applications`）并打开。
 2. 在「设置 → 工具接入」中接入 Claude Code 或 Codex。接入会写入当前 App 内 Hook 程序的路径，因此移动 App 后需要重新接入。**Codex 还需信任 Hook**：接入时会展示 AgentPulse 的命令和事件，请确认「信任」。已有接入可点击「重新接入」完成信任；取消后保留配置，未信任的 Hook 暂不能发送提醒，也可在 Codex CLI 输入 `/hooks` 手动信任 AgentPulse 条目。
@@ -115,7 +92,7 @@ Claude Code 与 Codex 的提醒方式分别配置，也可以把一张卡片复�
 
 ### 退出界面与卸载提醒
 
-- 退出 App 后，已接入的工具仍会发送提醒。收到消息时只启动后台通知进程，不打开主界面、Dock 图标或桌宠；主动打开 AgentPulse 后才恢复主界面和已启用的桌宠。
+- 退出 App 后，已接入的工具仍会发送提醒。收到消息时只启动后台通知进程，不打开主界面或 Dock 图标；主动打开 AgentPulse 后才恢复主界面。
 - 「设置 → 通用 → 卸载提醒」会备份并移除 Claude Code / Codex 中 AgentPulse 的 Hook，保留其他 Hook 和已保存的提醒配置。已有会话需重启后生效；已进入延迟队列的消息不受此操作影响。
 
 关闭主面板后，App 仍可在后台接收提醒；通过菜单栏图标重新打开面板或退出。开机自启可在「设置 → 通用」中开启。
@@ -183,7 +160,6 @@ src-tauri/src/
   commands.rs                面板命令，测试与模拟发送在后台执行
   ipc.rs                     Hook → App 的本地 Unix socket
   overlay.rs / overlay/      悬浮窗、来源清理与 macOS 面板
-  pet.rs                    桌宠窗口与按来源处理的临时消息队列
   notifications/             macOS 系统通知与点击响应
 scripts/env.sh               仓库内 Rust 环境
 scripts/build-app.sh         Hook 与 App 构建入口
@@ -195,7 +171,26 @@ scripts/build-app.sh         Hook 与 App 构建入口
 - App 日志位于 `logs/app.log`，Hook 异常位于 `hook-errors.log`，提醒记录位于 `events.jsonl`。
 - `.toolchain/`、`.venv/`、`node_modules/`、构建产物及 `.codegraph/` 等本地索引不进入 Git。
 
-自动更新界面和发布工作流已接入，但当前更新地址仍含 `OWNER/agentpulse` 占位值。发布可用更新前，需要配置真实仓库地址和更新签名密钥；目前请通过本机构建更新 App。
+## 网站与发布
+
+[网站首页](https://q1ngsong.github.io/AgentPulse/) · [使用指南](https://q1ngsong.github.io/AgentPulse/guide/) · [下载](https://github.com/Q1ngSong/AgentPulse/releases/latest)
+
+网站源码在 `site/`，只有首页和使用指南。`pnpm dev:site` 本地预览，`pnpm build:site` 输出到 `dist-site/`；GitHub Pages 工作流部署这个目录，网站资源不进入 App。
+
+当前 Release 提供 macOS 13+ / Apple Silicon 安装包。App 使用 ad-hoc 签名，尚未经过 Apple 公证；更新包使用已有的 Tauri 密钥签名。图标保留原始质量。
+
+本机发布构建（更新私钥保留在仓库外）：
+
+```bash
+export TAURI_SIGNING_PRIVATE_KEY="$HOME/.tauri/agentpulse.key"
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=''
+scripts/build-app.sh --bundles app
+scripts/package-release.sh
+```
+
+`src-tauri/target/release/publish/` 包含 DMG、更新包及签名、`latest.json` 和 `SHA256SUMS.txt`。打包脚本会自动核对哈希和签名；也可运行 `node scripts/verify-release.mjs` 单独验证。校验后将这些文件上传到对应版本的 GitHub Release。更新地址已经指向本仓库。
+
+GitHub Actions 的 Release 工作流可手动选择已有 tag 构建草稿；使用前需在仓库 Secrets 中配置 `TAURI_SIGNING_PRIVATE_KEY`，以及可选的 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。本地发布不需要把私钥上传到 GitHub。
 
 贡献与代码约定见 [PROJECT.md](PROJECT.md)。
 

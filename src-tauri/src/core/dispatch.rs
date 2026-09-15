@@ -10,7 +10,7 @@ use super::runtime::Runtime;
 
 /// 按配置把事件发给匹配的提醒方式，返回写入的提醒记录。
 /// source: "hook" / "simulate" / "test"；"test" 忽略延迟，永远立即发送。
-/// targets 为 None 时取该工具的提醒方式，以及接收当前工具与来源 App 的桌宠。
+/// targets 为 None 时取该工具的提醒方式。
 /// 发送顺序：设了延迟的先入队，再发即时渠道。
 pub fn dispatch(rt: &Runtime, agent: &str, event: &str, ctx: &Context, cfg: Option<&Config>, source: &str,
                 payload: Option<&Value>, targets: Option<Vec<Target>>) -> std::io::Result<Value> {
@@ -20,7 +20,6 @@ pub fn dispatch(rt: &Runtime, agent: &str, event: &str, ctx: &Context, cfg: Opti
     let message = Message { event: event.into(), title: render(&tpl.title, ctx), body: render(&tpl.body, ctx), agent: agent.into(), ctx: ctx.clone() };
     let targets = targets.unwrap_or_else(|| {
         cfg.tool_targets(agent).into_iter()
-            .chain(cfg.pets.iter().filter(|pet| pet.matches(agent, &ctx.host_bundle)).map(|pet| pet.target()))
             .filter(|t| t.enabled && t.events.iter().any(|e| e == event)).collect()
     });
     let (now_targets, later): (Vec<Target>, Vec<Target>) = targets.into_iter().partition(|t| source == "test" || queue::delay_minutes(t) == 0);

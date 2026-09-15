@@ -32,7 +32,6 @@ extern "C" fn on_activation(bundle: *const c_char) {
     let bundle = unsafe { CStr::from_ptr(bundle) }.to_string_lossy();
     if let Some(app) = APP.get() {
         super::dismiss_source(app, &bundle);
-        crate::pet::dismiss_source(&bundle);
         crate::notifications::dismiss_source(&bundle, before);
     }
 }

@@ -2,18 +2,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { Cat, ChevronLeft, FolderOpen, History, Music, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
+import { ChevronLeft, FolderOpen, History, Music, Plus, RefreshCw, Settings, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
-import { api, newTarget, State, Target, ToolKey, TYPE_META } from "@/lib/api";
+import { api, newTarget, Target, ToolKey, TYPE_META } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { HomeView } from "@/components/home/HomeView";
 import { EditView } from "@/components/edit/EditView";
 import { SettingsHandle, SettingsView } from "@/components/settings/SettingsView";
 import { RecordsView } from "@/components/records/RecordsView";
 import { LibraryView } from "@/components/library/LibraryView";
-import { PetsView } from "@/components/pets/PetsView";
 import { useConfirm } from "@/components/common/useConfirm";
 import { autoCheckOncePerDay } from "@/lib/updater";
 import { GITHUB_URL } from "@/lib/repo";
@@ -24,7 +23,6 @@ export type View =
   | { name: "edit"; draft: Target; isNew: boolean; index: number }
   | { name: "settings" }
   | { name: "records" }
-  | { name: "pets" }
   | { name: "library"; from?: View };
 
 export default function App() {
@@ -32,19 +30,11 @@ export default function App() {
   const [tool, setTool] = useState<ToolKey>(() => (localStorage.getItem("ap.tool") as ToolKey) || "claude");
   const [view, setView] = useState<View>({ name: "home" });
   const settings = useRef<SettingsHandle>(null);
-  const { data: state, error } = useQuery({ queryKey: ["state"], queryFn: api.getState, refetchInterval: view.name === "home" || view.name === "pets" ? 5000 : false });
+  const { data: state, error } = useQuery({ queryKey: ["state"], queryFn: api.getState, refetchInterval: view.name === "home" ? 5000 : false });
   const { confirm, dialog } = useConfirm();
 
   useEffect(() => localStorage.setItem("ap.tool", tool), [tool]);
   useEffect(() => { autoCheckOncePerDay(); }, []);
-  useEffect(() => api.onPetEnabledChanged(async ({ id, enabled }) => {
-    // 先取消旧查询，避免关闭前发出的读取结果把开关重新覆盖为开启。
-    await qc.cancelQueries({ queryKey: ["state"] });
-    qc.setQueryData<State>(["state"], current => current && { ...current, config: { ...current.config,
-      pets: current.config.pets.map(pet => pet.id === id ? { ...pet, enabled } : pet),
-    } });
-    void qc.invalidateQueries({ queryKey: ["state"] });
-  }), [qc]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || view.name === "home") return;
@@ -75,7 +65,7 @@ export default function App() {
   };
 
   const title = view.name === "edit" ? (view.isNew ? `为 ${agents[tool]} 添加提醒方式` : `${TYPE_META[view.draft.type]?.name ?? ""} · ${agents[tool]}`)
-    : { settings: "设置", records: "提醒记录", library: "声音库", pets: "桌宠", home: "" }[view.name];
+    : { settings: "设置", records: "提醒记录", library: "声音库", home: "" }[view.name];
 
   const clearRecords = async () => {
     if (!(await confirm({ title: "清空提醒记录", body: "所有工具的提醒记录都会被清空，不可恢复。", okText: "清空", danger: true }))) return;
@@ -107,7 +97,6 @@ export default function App() {
                 })}
               </div>
               <div className="inline-flex gap-1 rounded-xl bg-muted p-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8" title="桌宠" aria-label="桌宠" onClick={() => setView({ name: "pets" })}><Cat className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="提醒记录" onClick={() => setView({ name: "records" })}><History className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="声音库" onClick={() => setView({ name: "library" })}><Music className="h-4 w-4" /></Button>
               </div>
@@ -140,7 +129,6 @@ export default function App() {
             {view.name === "settings" && <SettingsView ref={settings} state={state} tool={tool} confirm={confirm} />}
             {view.name === "records" && <RecordsView state={state} tool={tool} />}
             {view.name === "library" && <LibraryView state={state} confirm={confirm} />}
-            {view.name === "pets" && <PetsView state={state} confirm={confirm} />}
           </motion.div>
         </AnimatePresence>
       </main>

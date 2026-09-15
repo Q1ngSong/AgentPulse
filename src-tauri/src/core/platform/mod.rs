@@ -39,14 +39,6 @@ pub struct SystemProbe;
 #[cfg(target_os = "macos")]
 mod macos;
 
-/// 来源选择器展示本机已安装的 App 名称；未知来源保留原始标识。
-pub fn app_name(bundle_id: &str) -> Option<String> {
-    #[cfg(target_os = "macos")]
-    { return macos::app_name(bundle_id); }
-    #[allow(unreachable_code)]
-    { let _ = bundle_id; None }
-}
-
 /// 优先使用桌面版自带 Codex，再查 CLI 安装位置；不启动桌面窗口。
 pub fn codex_binary() -> Result<std::path::PathBuf, String> {
     #[cfg(target_os = "macos")]

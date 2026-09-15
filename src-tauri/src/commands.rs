@@ -6,7 +6,6 @@ use tauri::AppHandle;
 
 use crate::core::config::{self, Config, Target};
 use crate::core::runtime::{hook_binary, Runtime};
-use crate::core::pet::{self, PetConfig, Phase, Update};
 use crate::core::{codex, dispatch, events, icons, integrations, log, paths::Paths, platform, queue, sounds};
 
 type R<T> = Result<T, String>;
@@ -52,7 +51,6 @@ pub fn get_state() -> R<Value> {
     }
     Ok(json!({
         "config": config::redact(&cfg),
-        "pet_sources": available_pet_sources(&cfg, &records, &log::read_activity(&paths, 400)),
         "integrations": integ,
         "stats": stats,
         "icons": icon_map,
@@ -64,74 +62,11 @@ pub fn get_state() -> R<Value> {
     }))
 }
 
-/// 已安装的常见来源、最近收到的 Hook 来源与已勾选来源取并集。
-fn available_pet_sources(cfg: &Config, records: &[Value], activity: &[Value]) -> Vec<Value> {
-    let mut found = std::collections::BTreeMap::new();
-    let mut add = |agent: &str, host: &str, name: Option<String>| {
-        if config::TOOLS.contains(&agent) && !host.is_empty() {
-            found.insert((agent.to_string(), host.to_string()), name.unwrap_or_else(|| host.into()));
-        }
-    };
-    for (_, host) in platform::TERM_PROGRAM_BUNDLES {
-        if let Some(name) = platform::app_name(host) {
-            for agent in config::TOOLS { add(agent, host, Some(name.clone())); }
-        }
-    }
-    for (agent, host) in platform::AGENT_APP_BUNDLES {
-        if let Some(name) = platform::app_name(host) { add(agent, host, Some(name)); }
-    }
-    for record in records.iter().filter(|r| r["source"] == "hook").chain(activity.iter()) {
-        let agent = record["agent"].as_str().unwrap_or("");
-        let host = record["host_bundle"].as_str().unwrap_or("");
-        add(agent, host, platform::app_name(host));
-    }
-    for source in cfg.pets.iter().flat_map(|p| &p.sources) { add(&source.agent, &source.host, platform::app_name(&source.host)); }
-    found.into_iter().map(|((agent, host), name)| json!({"agent":agent,"host":host,"name":name})).collect()
-}
-
-#[tauri::command]
-pub async fn save_pets(app: AppHandle, pets: Vec<PetConfig>, expected: Vec<PetConfig>) -> R<()> {
-    tauri::async_runtime::spawn_blocking(move || {
-        pet::validate_configs(&pets)?;
-        for pet in &pets { crate::pet_assets::validate_files(&pet.animations)?; }
-        let _configuration = crate::pet::configuration_lock();
-        let paths = Paths::from_env();
-        let mut cfg = config::load_config(&paths).map_err(err)?;
-        if cfg.pets != expected { return Err("桌宠设置刚刚发生变化，请刷新后重试".into()); }
-        cfg.pets = pets;
-        config::save_config(&paths, &cfg).map_err(err)?;
-        crate::pet::sync_config(&app, &cfg)
-    }).await.map_err(err)?
-}
-
-#[tauri::command]
-pub async fn test_pet(app: AppHandle, pet: PetConfig, event: String) -> R<Value> {
-    tauri::async_runtime::spawn_blocking(move || {
-        pet::validate_configs(std::slice::from_ref(&pet))?;
-        crate::pet_assets::validate_files(&pet.animations)?;
-        if !config::EVENT_KEYS.contains(&event.as_str()) { return Err("不支持的提醒事件".into()); }
-        let agent = pet.sources.first().map(|s| s.agent.as_str()).unwrap_or("codex");
-        let id = uuid::Uuid::new_v4().simple().to_string();
-        let title = format!("桌宠 {} · 测试消息", pet.number);
-        let body = "这是一条桌宠预览消息";
-        let update = Update { id: id.clone(), agent: agent.into(), host: String::new(), session: id.clone(),
-            hook_event: String::new(), tool_use_id: String::new(), tool_input_key: String::new(), observed_at: 0.0,
-            phase: if event == "permission_request" { Phase::PermissionRequest } else { Phase::TaskComplete },
-            title: title.clone(), detail: body.into(), animations: Some(pet.animations.clone()) };
-        let result = crate::pet::preview(&app, pet.clone(), update);
-        let record = json!({"id":id,"ts":log::now(),"source":"test","agent":agent,"event":event,
-            "title":title,"body":body,"results":[{"target_id":pet.id,"name":pet.target().name,"type":"pet",
-                "ok":result.is_ok(),"error":result.err(),"info":"已打开独立桌宠预览","ms":0}]});
-        log::append_event(&Paths::from_env(), &record).map_err(err)?;
-        Ok(record)
-    }).await.map_err(err)?
-}
-
 /// 整体保存某个工具的提醒方式列表；MASK 字段用已保存值补回。
 #[tauri::command]
 pub async fn save_tool_targets(agent: String, targets: Vec<Value>) -> R<()> {
     tauri::async_runtime::spawn_blocking(move || {
-    let _configuration = crate::pet::configuration_lock();
+    let _configuration = config::configuration_lock();
     let paths = Paths::from_env();
     let mut cfg = config::load_config(&paths).map_err(err)?;
     let saved = cfg.tool_targets(&agent);
@@ -155,7 +90,7 @@ fn hook_command(agent: &str) -> R<String> {
 #[tauri::command]
 pub async fn copy_target(agent: String, id: String, to: String) -> R<String> {
     tauri::async_runtime::spawn_blocking(move || {
-    let _configuration = crate::pet::configuration_lock();
+    let _configuration = config::configuration_lock();
     if !config::TOOLS.contains(&to.as_str()) || to == agent {
         return Err("目标工具无效".into());
     }
@@ -180,7 +115,7 @@ pub async fn copy_target(agent: String, id: String, to: String) -> R<String> {
 #[tauri::command]
 pub async fn save_templates(templates: Map<String, Value>) -> R<()> {
     tauri::async_runtime::spawn_blocking(move || {
-    let _configuration = crate::pet::configuration_lock();
+    let _configuration = config::configuration_lock();
     let paths = Paths::from_env();
     let mut cfg: Config = config::load_config(&paths).map_err(err)?;
     cfg.templates = templates;

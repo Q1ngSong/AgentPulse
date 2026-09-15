@@ -230,17 +230,6 @@ pub fn start(app: AppHandle, paths: &Paths) {
 fn handle(app: &AppHandle, req: &Value) -> Value {
     let s = |k: &str| req.get(k).and_then(Value::as_str).unwrap_or("").to_string();
     match s("kind").as_str() {
-        "pet_notify" => match serde_json::from_value::<crate::core::pet::Update>(req["update"].clone()) {
-            Ok(update) => match crate::pet::notify(app, &s("instance"), update) {
-                Ok(shown) => json!({"ok":true,"skipped":!shown}),
-                Err(e) => json!({"ok":false,"error":e}),
-            },
-            Err(e) => json!({"ok":false,"error":e.to_string()}),
-        },
-        "pet_update" => match serde_json::from_value::<crate::core::pet::Update>(req["update"].clone()) {
-            Ok(update) => { crate::pet::receive(update); json!({"ok": true}) }
-            Err(e) => json!({"ok": false, "error": e.to_string()}),
-        },
         "notify" => {
             let mode = s("mode");
             let (title, body, host, agent) = (s("title"), s("body"), s("host"), s("agent"));

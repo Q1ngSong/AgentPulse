@@ -185,7 +185,7 @@ mod tests {
         for (k, v) in extra.as_object().unwrap() {
             card[k] = v.clone();
         }
-        let mut cfg = config::Config { templates: Map::new(), tools: Default::default(), pets: Vec::new() };
+        let mut cfg = config::Config { templates: Map::new(), tools: Default::default() };
         cfg.set_tool_targets(agent, &[serde_json::from_value(card).unwrap()]);
         config::save_config(p, &cfg).unwrap();
     }

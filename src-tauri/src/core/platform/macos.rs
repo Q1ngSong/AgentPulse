@@ -23,7 +23,6 @@ fn app_info(bundle_id: &str) -> Option<(std::path::PathBuf, String)> {
     })
 }
 
-pub fn app_name(bundle_id: &str) -> Option<String> { app_info(bundle_id).map(|(_, name)| name) }
 
 /// 通过应用注册信息定位 Codex，支持改名或移动后的 .app。
 pub fn codex_binary() -> Option<std::path::PathBuf> {

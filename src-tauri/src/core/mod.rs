@@ -10,10 +10,7 @@ pub mod icons;
 pub mod integrations;
 pub mod log;
 pub mod paths;
-pub mod pet;
 pub mod platform;
 pub mod queue;
 pub mod runtime;
 pub mod sounds;
-
-pub mod pet_animation;

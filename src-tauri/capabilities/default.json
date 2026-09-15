@@ -4,7 +4,6 @@
   "description": "面板窗口与悬浮窗的权限",
   "windows": [
     "main",
-    "pet-*",
     "overlay-*"
   ],
   "permissions": [

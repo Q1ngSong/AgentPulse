@@ -1,8 +1,5 @@
 /* 前端唯一的后端入口：全部通过 Tauri 命令调用 Rust 核心 */
-import { defaultPetAnimations } from "./pet-animation";
-import type { PetAnimations } from "./pet-animation";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 
 export type EventKey = "permission_request" | "task_complete";
 export type ToolKey = "claude" | "codex";
@@ -30,13 +27,7 @@ export interface Target {
 }
 
 export interface Template { title: string; body: string }
-export interface PetSource { agent: ToolKey; host: string }
-export interface PetEnabledChange { id: string; enabled: boolean }
-export interface PetConfig {
-  id: string; number: number; name: string; enabled: boolean;
-  events: EventKey[]; animations: PetAnimations; sources: PetSource[];
-}
-export interface Config { templates: Record<EventKey, Template>; tools: Record<ToolKey, { targets: Target[] }>; pets: PetConfig[] }
+export interface Config { templates: Record<EventKey, Template>; tools: Record<ToolKey, { targets: Target[] }> }
 export interface Integration {
   agent: ToolKey; name: string; file: string; file_exists: boolean; tool_dir_exists: boolean;
   events: Record<string, boolean>; installed: boolean; error: string | null; backup: string | null;
@@ -48,7 +39,6 @@ export interface State {
   integrations: Record<ToolKey, Integration>;
   stats: Record<ToolKey, ToolStats>;
   icons: Record<ToolKey, string | null>;
-  pet_sources: (PetSource & { name: string })[];
   hook_binary: string;
   hook_binary_exists: boolean;
   meta: { events: Record<EventKey, string>; agents: Record<ToolKey, string>; data_dir: string };
@@ -62,22 +52,11 @@ export interface Sound { ref: string; name: string; kind: "system" | "custom"; e
 
 export const api = {
   getState: () => invoke<State>("get_state"),
-  onPetEnabledChanged: (handler: (change: PetEnabledChange) => void) => {
-    let disposed = false;
-    let stop: (() => void) | undefined;
-    void listen<PetEnabledChange>("pet-enabled-changed", ({ payload }) => { if (!disposed) handler(payload); })
-      .then(unlisten => { if (disposed) unlisten(); else stop = unlisten; })
-      .catch(error => console.error("监听桌宠状态失败", error));
-    return () => { disposed = true; stop?.(); };
-  },
   saveToolTargets: (agent: ToolKey, targets: Target[]) => invoke<void>("save_tool_targets", { agent, targets }),
   copyTarget: (agent: ToolKey, id: string, to: ToolKey) => invoke<string>("copy_target", { agent, id, to }),
   saveTemplates: (templates: Record<EventKey, Template>) => invoke<void>("save_templates", { templates }),
-  savePets: (pets: PetConfig[], expected: PetConfig[]) => invoke<void>("save_pets", { pets, expected }),
-  testPet: (pet: PetConfig, event: EventKey) => invoke<EventRecord>("test_pet", { pet, event }),
   testTarget: (agent: ToolKey, target: Target, event: EventKey) => invoke<EventRecord>("test_target", { agent, target, event }),
   simulate: (agent: ToolKey, event: EventKey) => invoke<EventRecord>("simulate", { agent, event }),
-  inspectPetFolder: (folder: string) => invoke<{count:number;width:number;height:number}>("inspect_pet_folder", {folder}),
   listSounds: () => invoke<Sound[]>("list_sounds"),
   uploadSound: (name: string, data: Uint8Array) => invoke<string>("upload_sound", { name, data: Array.from(data) }),
   renameSound: (ref: string, name: string) => invoke<string>("rename_sound", { ref, name }),
@@ -111,12 +90,6 @@ export function newTarget(type: TargetType): Target {
   if (type === "wxtest") Object.assign(base, { name: "我的微信", appid: "", secret: "", openid: "", template_id: "", delay_minutes: 5, batch: true });
   if (type === "feishu") Object.assign(base, { name: "飞书群", webhook: "", secret: "", delay_minutes: 0, batch: true });
   return base;
-}
-
-export function newPet(pets: PetConfig[]): PetConfig {
-  const number = Math.max(0, ...pets.map((pet) => pet.number)) + 1;
-  return { id: `pet-${crypto.randomUUID()}`, number, name: "", enabled: true,
-    events: [...EVENT_KEYS], animations: defaultPetAnimations(), sources: [] };
 }
 
 export const soundLabel = (ref?: string) => {

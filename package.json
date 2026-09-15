@@ -13,7 +13,8 @@
     "build:renderer": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
-    "test:pet": "node --experimental-strip-types --test src/lib/pet-player.test.ts"
+    "dev:site": "vite --config vite.site.config.ts",
+    "build:site": "vite build --config vite.site.config.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

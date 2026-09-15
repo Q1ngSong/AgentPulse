@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>使用指南 · AgentPulse</title><meta name="description" content="安装 AgentPulse，接入 Claude Code 或 Codex，配置本机提醒与延迟远程推送。"><meta name="theme-color" content="#f8faff">
+  <link rel="canonical" href="https://q1ngsong.github.io/AgentPulse/guide/">
+  <link rel="icon" type="image/png" href="../icon.png"><link rel="stylesheet" href="../style.css"><script type="module" src="../main.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">跳到正文</a>
+<header class="header"><nav class="nav wrap" aria-label="主导航"><a class="brand" href="../"><img src="../icon.png" width="32" height="32" alt="">AgentPulse</a><div class="nav-links"><a href="../">首页</a><a href="./" aria-current="page">使用指南</a><a class="github-link" href="https://github.com/Q1ngSong/AgentPulse">GitHub ↗</a></div><a class="button small" href="https://github.com/Q1ngSong/AgentPulse/releases/latest">下载 <span aria-hidden="true">↓</span></a></nav></header>
+<main id="main" class="guide wrap">
+  <header class="guide-heading"><p class="eyebrow">GET STARTED</p><h1>让第一条提醒，<br>顺利到达。</h1><p>安装、接入、测试。按照下面的步骤开始。</p></header>
+  <div class="guide-layout"><aside class="guide-toc"><nav aria-label="使用指南目录"><a href="#install">01 安装 App</a><a href="#connect">02 接入工具</a><a href="#notifications">03 配置提醒</a><a href="#remote">04 远程推送</a><a href="#troubleshooting">常见问题</a><a href="#uninstall">退出与卸载提醒</a></nav></aside>
+  <div class="guide-content">
+    <section id="install"><p class="step-number">01</p><h2>安装 App</h2><p>当前版本适用于 <strong>Apple Silicon（M 系列）Mac，macOS 13 或更新版本</strong>。</p><ol><li>从 <a href="https://github.com/Q1ngSong/AgentPulse/releases/latest">GitHub Release</a> 下载 <code>.dmg</code> 安装包。</li><li>打开 DMG，把 <strong>AgentPulse.app</strong> 拖到 <strong>Applications</strong> 文件夹。</li><li>从「应用程序」打开 AgentPulse。先放到固定位置，再接入工具。</li></ol><div class="note"><strong>首次打开</strong><p>当前版本使用 ad-hoc 签名，尚未经过 Apple 公证。若 macOS 拦截打开，请先确认下载来自本项目的 Release，再到「系统设置 → 隐私与安全性」查看并选择「仍要打开」。<a href="https://support.apple.com/zh-cn/102445">查看 Apple 的说明 ↗</a></p></div></section>
+    <section id="connect"><p class="step-number">02</p><h2>接入 Claude Code / Codex</h2><ol><li>打开 <strong>设置 → 工具接入</strong>，找到使用中的工具并点击接入。</li><li>使用 Codex 时，核对接入弹窗中的 AgentPulse 命令与事件，再确认<strong>信任</strong>。取消信任后，Hook 不会执行。</li><li><strong>重新启动 Claude Code / Codex 并新开会话</strong>，使工具加载新的 Hook 配置。</li></ol><p>接入前会备份工具配置，只修改 AgentPulse 自己的 Hook。批准任务权限仍在来源工具中完成。</p><div class="inline-tip">移动或重新安装 App 后，请回到这里「重新接入」，更新 Hook 指向的程序路径。</div></section>
+    <section id="notifications"><p class="step-number">03</p><h2>选好提醒方式，做一次测试</h2><p>在首页选择 Claude Code 或 Codex，再编辑或添加提醒方式。两个工具分别保存自己的配置。</p><div class="guide-table"><table><thead><tr><th>方式</th><th>适合什么情况</th></tr></thead><tbody><tr><td>强制悬浮窗</td><td>希望提醒显示在屏幕右上角，不经过通知中心。</td></tr><tr><td>系统通知</td><td>使用 macOS 通知中心；需允许系统通知，受专注模式控制。</td></tr><tr><td>两者都发</td><td>同时显示悬浮窗与系统通知。</td></tr><tr><td>提示音</td><td>按「请求权限」「任务完成」分别选择音效和音量。</td></tr></tbody></table></div><p>点击卡片上的<strong>测试</strong>，确认能够收到提醒；然后在新的 Agent 会话里完成一个真实任务，再查看「提醒记录」。</p><div class="inline-tip">测试会真实发送，且忽略延迟设置。「已配置」表示接入已写入，不代表已经验证了真实消息接收。</div><p>提醒显示后约 5 秒自动收起。点击「返回来源」会切回对应 App；手动切回来源也会清理它已有的屏幕提醒。</p></section>
+    <section id="remote"><p class="step-number">04</p><h2>离开电脑，也能收到消息</h2><h3>飞书群机器人</h3><p>添加飞书提醒卡片，填写群机器人的 Webhook 地址；机器人启用了签名校验时，再填写签名密钥。</p><h3>微信测试号</h3><p>填写 appID、appsecret、openid 和模板 ID。消息模板应包含下面三个字段：</p><pre><code>{{title.DATA}}
+{{body.DATA}}
+{{time.DATA}}</code></pre><h3>延迟发送</h3><p>飞书和微信可以立即发送，也可以延迟 1、3、5、10、15 或 30 分钟。每张卡片独立设置。</p><p>例如微信设为延迟 5 分钟：等待期间，检测到你回到来源 App 或相关会话继续活动，就取消对应待发提醒；否则到期推送。队列约每分钟检查一次，因此发送和取消可能略有延后。</p><div class="inline-tip">队列按来源 App 分开。回到 VS Code 不会清掉 Terminal 的消息；仅关闭一条悬浮窗，也不会直接取消远程队列。</div></section>
+    <section id="troubleshooting"><p class="eyebrow">TROUBLESHOOTING</p><h2>没有收到提醒？</h2><details open><summary>Codex 已接入，任务结束仍然没有消息</summary><div><ol><li>在工具接入中「重新接入」，确认 AgentPulse Hook 已受信任。</li><li>完全重启 Codex，再创建新会话测试。仅在旧进程中新建任务，可能仍使用旧配置。</li><li>先用提醒卡片的「测试」检查渠道，再到「提醒记录」确认是否收到了真实 Hook 事件。</li></ol><p>如果记录为空，重点检查接入；有记录但发送失败，按记录中的错误检查对应渠道。</p></div></details><details><summary>系统通知没有显示</summary><div><p>在 macOS「系统设置 → 通知 → AgentPulse」中允许通知，并检查专注模式。也可切换到「强制悬浮窗」验证本机提醒。</p></div></details><details><summary>为什么微信或飞书没有立刻推送？</summary><div><p>检查卡片是否设置了延迟，以及当前是否已经回到来源 App。正常使用时会取消已处理任务的待发消息；卡片测试则会忽略延迟立即发送。</p></div></details><details><summary>找不到原因，在哪里反馈？</summary><div><p>查看「提醒记录」中的错误，以及「设置 → 数据目录」中的日志。向 <a href="https://github.com/Q1ngSong/AgentPulse/issues">GitHub Issues</a> 提供系统版本、Agent 类型和复现步骤；分享日志前请去除消息正文、路径和密钥等私人信息。</p></div></details></section>
+    <section id="uninstall"><p class="eyebrow">YOU’RE IN CONTROL</p><h2>退出与卸载提醒</h2><p><strong>退出 App：</strong>接入继续保留。有消息时，AgentPulse 只启动后台通知进程，不重新打开主界面和 Dock 图标。主动打开 App 才会恢复主界面。</p><p><strong>不再接收新提醒：</strong>在「设置 → 通用 → 卸载提醒」中移除 AgentPulse 的 Hook，然后重启已打开的 Agent 会话。其他 Hook 与已保存的提醒设置会保留；已进入延迟队列的消息不受影响。</p><p>准备删除 App 时，请先卸载提醒，避免工具继续调用已经不存在的程序。</p><a class="text-link" href="../">返回首页 <span aria-hidden="true">↗</span></a></section>
+  </div></div>
+</main>
+<footer class="footer wrap"><a class="brand" href="../">AgentPulse<span class="signal-dot"></span></a><span>把等待的时间，留给自己。</span><div><a href="https://github.com/Q1ngSong/AgentPulse">GitHub ↗</a><a href="https://github.com/Q1ngSong/AgentPulse/blob/main/LICENSE">MIT</a></div></footer>
+</body></html>

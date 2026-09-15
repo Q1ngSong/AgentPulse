@@ -11,7 +11,7 @@ pub const EVENTS: [(&str, &str); 2] = [("permission_request", "请求权限"), (
 /// 我们的事件 → 工具里的 Hook 事件名（Claude 和 Codex 一致）
 pub const HOOK_EVENTS: [(&str, &str); 2] = [("permission_request", "PermissionRequest"), ("task_complete", "Stop")];
 /// 不发提醒、只用来判断“有人在这个工具里工作”的 Hook
-pub const ACTIVITY_HOOKS: [(&str, &str); 3] = [("user_prompt", "UserPromptSubmit"), ("tool_start", "PreToolUse"), ("tool_done", "PostToolUse")];
+pub const ACTIVITY_HOOKS: [(&str, &str); 2] = [("user_prompt", "UserPromptSubmit"), ("tool_done", "PostToolUse")];
 pub const AGENTS: [(&str, &str); 2] = [("claude", "Claude Code"), ("codex", "Codex")];
 
 pub fn agent_name(agent: &str) -> &str {

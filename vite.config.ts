@@ -13,7 +13,6 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, "src/index.html"),
         overlay: path.resolve(__dirname, "src/overlay.html"),
-        pet: path.resolve(__dirname, "src/pet.html"),
       },
     },
   },
