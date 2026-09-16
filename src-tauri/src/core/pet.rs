@@ -163,7 +163,7 @@ impl State {
         }) { return; }
 
         let entire_session = matches!(update.hook_event.as_str(), "UserPromptSubmit" | "Stop") || update.phase == Phase::TaskComplete;
-        let completed_call = update.hook_event == "PostToolUse" && (!update.tool_use_id.is_empty()
+        let completed_call = matches!(update.hook_event.as_str(), "PostToolUse" | super::codex_permission::RESOLVED) && (!update.tool_use_id.is_empty()
             || (!update.tool_input_key.is_empty() && update.observed_at > 0.0));
         if entire_session || completed_call {
             self.pending.retain(|n| {
@@ -412,6 +412,20 @@ mod tests {
         };
         Update { agent: "codex".into(), session: "session".into(), hook_event: hook.into(),
             observed_at: at, tool_use_id: call.into(), ..notice(id, "", phase) }
+    }
+
+    #[test]
+    fn confirmed_approval_is_immediate_and_resolution_only_clears_that_request() {
+        let now = Instant::now();
+        let mut state = State::default();
+        for call in ["a", "b"] {
+            let mut request = codex_hook(call, super::super::codex_permission::CONFIRMED, 10.0, call);
+            request.phase = Phase::PermissionRequest;
+            state.receive_at(request, now);
+        }
+        assert_eq!(state.visible_pending_len_at(now), 2);
+        state.receive_at(codex_hook("resolved", super::super::codex_permission::RESOLVED, 11.0, "a"), now);
+        assert_eq!(state.pending.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(), ["b"]);
     }
 
     #[test]

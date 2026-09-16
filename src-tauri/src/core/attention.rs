@@ -37,7 +37,7 @@ pub fn permission_granted(paths: &Paths, items: &[Item]) -> bool {
     let done: Vec<Value> = log::read_activity(paths, 200).into_iter().filter(|a| a.get("kind").and_then(Value::as_str) == Some("tool")).collect();
     items.iter().any(|it| {
         let Some(sid) = it.ctx.session_id.as_deref().filter(|s| !s.is_empty()) else { return false };
-        it.event == "permission_request"
+        it.event == "permission_request" && it.ctx.hook_event != super::codex_permission::CONFIRMED
             && done.iter().any(|a| {
                 same_source(a, it)
                     && a.get("session_id").and_then(Value::as_str) == Some(sid)
@@ -49,6 +49,7 @@ pub fn permission_granted(paths: &Paths, items: &[Item]) -> bool {
 
 /// 同一来源 App、同一对话在提醒之后又有新的 Hook 事件。
 pub fn newer_activity(paths: &Paths, item: &Item) -> bool {
+    if item.ctx.hook_event == super::codex_permission::CONFIRMED { return false; }
     let Some(sid) = item.ctx.session_id.as_deref().filter(|s| !s.is_empty()) else { return false };
     log::read_events(paths, 100).iter().any(|e| {
         e.get("source").and_then(Value::as_str) == Some("hook")

@@ -9,10 +9,6 @@ use std::io::{Read, Write};
 use agentpulse_lib::core::{dispatch, events, log, paths::Paths, pet, platform, queue, runtime::Runtime};
 use serde_json::Value;
 
-fn codex_permission_can_be_observed(payload: &Value) -> bool {
-    payload.get("permission_mode").and_then(Value::as_str) == Some("default")
-}
-
 fn run() -> Result<(), String> {
     let paths = Paths::from_env();
     let rt = Runtime::system(paths.clone());
@@ -21,7 +17,7 @@ fn run() -> Result<(), String> {
         return queue::run_queue_worker(&rt).map_err(|e| e.to_string());
     }
     if args.first().map(String::as_str) == Some("--codex-permission-worker") {
-        return agentpulse_lib::core::codex_permission::run_worker(&rt).map_err(|e| e.to_string());
+        return agentpulse_lib::core::codex_permission::run_worker(&rt, args.get(1).map(String::as_str)).map_err(|e| e.to_string());
     }
     // --install / --uninstall <claude|codex>：命令行接入，写入本程序自身的路径（打包脚本和面板都能用）
     if let Some(action) = args.first().filter(|a| *a == "--install" || *a == "--uninstall") {
@@ -87,9 +83,8 @@ fn run() -> Result<(), String> {
             });
         }
 
-        if agent == "codex" && event == "permission_request" && codex_permission_can_be_observed(&payload) {
-            // permission_mode 是 Codex 侧的模式名，不足以证明“正在等用户本人审批”。
-            // 先观察一小段时间：若同一工具随后进入 PostToolUse，说明请求已经被处理；否则再提醒。
+        if agent == "codex" && event == "permission_request" {
+            // Hook 只负责唤醒只读观察器。所有 permission_mode 都必须由真实待审批状态确认。
             return agentpulse_lib::core::codex_permission::schedule(&rt, &agent, &event, &ctx, &payload).map_err(|e| e.to_string());
         }
         dispatch::dispatch(&rt, &agent, &event, &ctx, None, "hook", Some(&payload), None).map_err(|e| e.to_string())?;
@@ -106,17 +101,4 @@ fn main() {
         }
     }
     std::process::exit(0);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn codex_default_permission_uses_observation_window() {
-        assert!(codex_permission_can_be_observed(&json!({"permission_mode": "default"})));
-        assert!(!codex_permission_can_be_observed(&json!({"permission_mode": "on-request"})));
-        assert!(!codex_permission_can_be_observed(&json!({})));
-    }
 }

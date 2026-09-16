@@ -51,13 +51,9 @@ pub(crate) fn hide_dock(app: &AppHandle) {
     }
 }
 
-/// 重新显示主窗口时，先通过 TransformProcessType 恢复 Dock 图标。
+/// 从菜单栏打开面板；macOS 始终保持 Accessory，避免生成 Dock 最近使用记录。
 fn show_main(app: &AppHandle) {
     if !INTERACTIVE.swap(true, Ordering::AcqRel) { pet::restore(app.clone()); }
-    #[cfg(target_os = "macos")]
-    if let Err(e) = app.set_dock_visibility(true) {
-        app_log(&format!("恢复 Dock 图标失败：{e}"));
-    }
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
         let _ = w.set_focus();
@@ -76,7 +72,8 @@ pub fn run() {
     // UNUserNotificationCenter 的 delegate 必须在 macOS 完成启动前注册。
     #[cfg(target_os = "macos")]
     notifications::init();
-    let app = tauri::Builder::default()
+    #[allow(unused_mut)] // macOS 在启动事件循环前设置应用策略。
+    let mut app = tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -146,7 +143,11 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
     #[cfg(target_os = "macos")]
-    notifications::set_app(app.handle().clone());
+    {
+        // 在事件循环启动前指定策略，避免 tao 的默认 Regular 覆盖 LSUIElement。
+        app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+        notifications::set_app(app.handle().clone());
+    }
     app.run(|app, event| {
         #[cfg(not(target_os = "macos"))]
         let _ = app;
@@ -155,8 +156,7 @@ pub fn run() {
             ipc::shutdown(&Paths::from_env());
             app_log("AgentPulse 退出");
         }
-        // 关闭主窗口后 App 仍在后台跑（只是隐藏了 Dock 图标）；这时如果用户点了 Dock 里钉住的图标，
-        // macOS 发的是 Reopen 而不是重新启动一个进程，不接这个事件的话点了不会有任何反应。
+        // 从 Finder、Spotlight 或用户固定的快捷入口再次打开时，macOS 会发出 Reopen。
         #[cfg(target_os = "macos")]
         tauri::RunEvent::Reopen { .. } => {
             if background_launch() {

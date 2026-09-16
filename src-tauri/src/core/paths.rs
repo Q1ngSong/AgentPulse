@@ -39,7 +39,6 @@ impl Paths {
     pub fn worker_lock(&self) -> PathBuf { self.data_dir.join("worker.lock") }
     pub fn codex_permission_pending(&self) -> PathBuf { self.data_dir.join("codex-permission-pending.json") }
     pub fn codex_permission_lock(&self) -> PathBuf { self.data_dir.join("codex-permission.lock") }
-    pub fn codex_permission_worker_lock(&self) -> PathBuf { self.data_dir.join("codex-permission-worker.lock") }
     pub fn wx_token_cache(&self) -> PathBuf { self.data_dir.join("wx-access-token.json") }
     pub fn sounds(&self) -> PathBuf { self.data_dir.join("sounds") }
     pub fn icons(&self) -> PathBuf { self.data_dir.join("icons") }

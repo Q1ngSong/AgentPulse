@@ -1,0 +1,190 @@
+{
+  "date": "2026-09-16",
+  "timezone": "Asia/Shanghai",
+  "approval_mode_for_A_B": "auto_review",
+  "real_channel_mode": "system",
+  "hook_hash_A_B_sample": "ae9d5e878d295aa364eedf28ad0f6115b9715a264af93a2b86cb28f63a72abfe",
+  "hook_hash_C_before_request": "5b70fd2b02f6a5e4d30da42985407c3b0a38f24bd08b6ce03447c19863cb5479",
+  "build_changed_during_test": true,
+  "cases": [
+    {
+      "case": "AP-PERM-A",
+      "requires_human_approval": false,
+      "permission_mode": "default",
+      "pending_id": "d787d0f398464100bffd51de6ea95032",
+      "permission_request_at": 1789542961.51571,
+      "tool_input_key": "b4d7e2cec40409b96119b69b0bd28c4df674dc5ebe919cf1478582c1d9b2ed4d",
+      "activity": [
+        {
+          "hook_event": "PostToolUse",
+          "ts": 1789542968.40134,
+          "seconds_after_request": 6.885629892349243
+        }
+      ],
+      "notifications": [],
+      "user_observation": "Confirmed no manual approval; no separate visual confirmation for notification absence."
+    },
+    {
+      "case": "AP-PERM-B",
+      "requires_human_approval": false,
+      "permission_mode": "default",
+      "pending_id": "0b17267b7c59438eb03575086d61f50f",
+      "permission_request_at": 1789543015.031925,
+      "tool_input_key": "5540636728b9ddf00d49a8a9dd7a37de1d8fd678534f390c481d6cfcea19f6c0",
+      "activity": [
+        {
+          "hook_event": "PostToolUse",
+          "ts": 1789543130.69312,
+          "seconds_after_request": 115.66119503974915
+        }
+      ],
+      "notifications": [
+        {
+          "id": "d969be69fa89",
+          "ts": 1789543105.041284,
+          "seconds_after_request": 90.00935912132263,
+          "event": "permission_request",
+          "results": [
+            {
+              "ms": 9,
+              "name": "macOS 弹窗",
+              "ok": true,
+              "target_id": "desktop",
+              "type": "desktop"
+            },
+            {
+              "ms": 1,
+              "name": "提示音",
+              "ok": true,
+              "target_id": "sound",
+              "type": "sound"
+            }
+          ]
+        }
+      ],
+      "execution_started_at_local": "2026-09-16T15:17:00.671740+08:00",
+      "execution_finished_at_local": "2026-09-16T15:18:50.676795+08:00",
+      "user_observation": "Confirmed no manual approval and AP-PERM-B notification was visible.",
+      "verdict": "false_positive"
+    },
+    {
+      "case": "AP-PERM-C",
+      "requires_human_approval": true,
+      "permission_mode": "default",
+      "pending_id": "5db4332d4cd24f2598d3c782ca98cbd1",
+      "permission_request_at": 1789543206.157292,
+      "tool_input_key": "cd3e9bdb92751449efaeff866261dfd9d720cc2de836cde7e17138066f777b5a",
+      "activity": [],
+      "notifications": [
+        {
+          "id": "c6a7679126e6",
+          "ts": 1789543296.163464,
+          "seconds_after_request": 90.00617218017578,
+          "event": "permission_request",
+          "results": [
+            {
+              "ms": 3,
+              "name": "macOS 弹窗",
+              "ok": true,
+              "target_id": "desktop",
+              "type": "desktop"
+            },
+            {
+              "ms": 1,
+              "name": "提示音",
+              "ok": true,
+              "target_id": "sound",
+              "type": "sound"
+            }
+          ]
+        }
+      ],
+      "execution_result": "Rejected by user; command did not execute.",
+      "user_observation": "Latest explicit answer: Codex approval buttons visible; AgentPulse notification not seen. Earlier unspecified window report is ambiguous.",
+      "verdict": "manual_approval_confirmed_notification_visibility_unconfirmed"
+    }
+  ],
+  "isolated_checks": [
+    {
+      "case": "no_activity",
+      "event_count": 1,
+      "delays_seconds": [
+        90.00742793083191
+      ],
+      "hook_errors": ""
+    },
+    {
+      "case": "resolved",
+      "event_count": 0,
+      "delays_seconds": [],
+      "hook_errors": ""
+    },
+    {
+      "case": "pre_before_permission",
+      "event_count": 1,
+      "delays_seconds": [
+        90.00699496269226
+      ],
+      "hook_errors": ""
+    }
+  ],
+  "ui_evidence": "User observation only; no screenshots. Channel success is not visual confirmation.",
+  "post_fix_isolated_regression": {
+    "kind": "synthetic_codex_ipc_with_compiled_debug_hook",
+    "live_notifications": false,
+    "auto_review_without_post_seconds": 110.003,
+    "auto_review_permission_event_count": 0,
+    "matching_manual_request_dispatch_seconds": 0.028,
+    "permission_event_count_after_duplicate_snapshot": 1,
+    "resolved_pending_count": 0,
+    "hook_stdout_bytes": 0,
+    "observer_error_count": 0,
+    "artifact": "/tmp/ap-approval-8ko4zb4b/result.json",
+    "limitations": [
+      "Real Codex manual approval UI and visible AgentPulse notification not yet verified after fix.",
+      "Full Rust tests blocked by sandbox socket permissions and approval model capacity."
+    ]
+  },
+  "post_fix_app_build": {
+    "app": "/Volumes/DataLayer/YuwanZ-APPs/AgentPulse/src-tauri/target/release/bundle/macos/AgentPulse.app",
+    "hook_sha256": "10ccb5665d3b83be9268b16b14cbc634032f928d653355c2ada2f522dc56811e",
+    "signature_verification": "passed",
+    "installed": false,
+    "real_notification_ui_verified": false
+  },
+  "full_retest": {
+    "checked_at": "2026-09-16T16:20:26.860015+08:00",
+    "rust_command": "source scripts/env.sh; cargo test --locked --manifest-path src-tauri/Cargo.toml",
+    "rust_exit_code": 0,
+    "unit_tests": {
+      "passed": 126,
+      "failed": 0,
+      "ignored": 0
+    },
+    "queue_integration_tests": {
+      "passed": 44,
+      "failed": 0,
+      "ignored": 0
+    },
+    "total_tests_passed": 170,
+    "renderer_command": "source scripts/env.sh; pnpm build:renderer",
+    "renderer_exit_code": 0,
+    "app_signature_verification": "passed",
+    "diff_check": "passed",
+    "installed_hook_sha256": "5b70fd2b02f6a5e4d30da42985407c3b0a38f24bd08b6ce03447c19863cb5479",
+    "built_hook_sha256": "10ccb5665d3b83be9268b16b14cbc634032f928d653355c2ada2f522dc56811e",
+    "installation_executed": false,
+    "release_110_second_retest_executed": false,
+    "manual_notification_ui_verified": false,
+    "blocked_actions": [
+      "Install tested App into /Applications/AgentPulse.app",
+      "Run 110 second isolated regression against packaged release Hook"
+    ],
+    "block_reason": "Automatic approval review failed: Selected model is at capacity. Actions did not execute.",
+    "source_hashes": {
+      "src-tauri/src/core/codex_approval.rs": "7a03712233d5346580447bd9b07e23e17bbf64c10b19fe0cdaeacba569f2e941",
+      "src-tauri/src/core/codex_permission.rs": "24f24d7637209661387eebdcf3318e1d47d690753177368ee954a80b81f7b63a",
+      "src-tauri/src/bin/hook.rs": "d71c36c7fb1a5e3b5f64518dace8fc2c134f881fd765e4abc12eca4d75f74964"
+    }
+  }
+}

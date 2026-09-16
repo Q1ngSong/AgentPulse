@@ -68,6 +68,18 @@ pub fn save_queue(paths: &super::paths::Paths, items: &[Item]) -> std::io::Resul
     Ok(())
 }
 
+/// Codex 的真实审批请求消失时，只取消对应请求尚未发送的提醒。
+pub fn cancel_codex_approval(paths: &super::paths::Paths, session: &str, request: &str) -> std::io::Result<()> {
+    let _lock = FileLock::acquire(&paths.queue_lock())?;
+    let mut items = load_queue(paths);
+    let before = items.len();
+    items.retain(|it| !(it.agent == "codex" && it.event == "permission_request"
+        && it.ctx.hook_event == super::codex_permission::CONFIRMED
+        && it.ctx.session_id.as_deref() == Some(session) && it.ctx.tool_use_id == request));
+    if items.len() != before { save_queue(paths, &items)?; }
+    Ok(())
+}
+
 /// 队列里是否有这个对话等待中的权限请求；PostToolUse 用它决定要不要记录。
 pub fn has_pending_permission(paths: &super::paths::Paths, session_id: Option<&str>) -> bool {
     let Some(sid) = session_id.filter(|s| !s.is_empty()) else { return false };
@@ -230,6 +242,12 @@ fn queue_loop(rt: &Runtime) -> std::io::Result<()> {
                             continue;
                         }
                     };
+                    // 审批观察器可能已在规划后取消了某个请求；每次投递前重新核对队列。
+                    let live: BTreeSet<String> = {
+                        let Ok(_lock) = FileLock::acquire(&rt.paths.queue_lock()) else { continue };
+                        load_queue(&rt.paths).into_iter().map(|it| it.r#ref).collect()
+                    };
+                    let batch: Vec<Item> = batch.into_iter().filter(|it| live.contains(&it.r#ref)).collect();
                     let (batch, cancelled): (Vec<Item>, Vec<Item>) = batch.into_iter()
                         .partition(|it| current.as_ref().is_some_and(|t| t.events.contains(&it.event)));
                     if !cancelled.is_empty() {

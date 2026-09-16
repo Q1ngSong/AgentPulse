@@ -3,6 +3,7 @@
 pub mod attention;
 pub mod channels;
 pub mod codex_permission;
+mod codex_approval;
 pub mod codex;
 pub mod config;
 pub mod dispatch;

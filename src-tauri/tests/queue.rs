@@ -894,3 +894,22 @@ fn numbered_pets_route_multiple_apps_and_agents_once_per_selected_pet() {
     assert_eq!(result["results"].as_array().unwrap().len(), 1, "单宠测试不向其他桌宠广播");
     assert_eq!(result["results"][0]["target_id"], "pet-1");
 }
+
+#[test]
+fn codex_resolution_cancels_only_its_request_before_delayed_delivery() {
+    let h = harness();
+    let mut cfg = config::default_config();
+    cfg.set_tool_targets("codex", &[target(10, false)]);
+    config::save_config(&h.rt.paths, &cfg).unwrap();
+    for (session, call) in [("s1", "a"), ("s1", "b"), ("s2", "a")] {
+        let mut ctx = sample_context("codex", "permission_request");
+        ctx.session_id = Some(session.into());
+        ctx.hook_event = agentpulse_lib::core::codex_permission::CONFIRMED.into();
+        ctx.tool_use_id = call.into();
+        dispatch::dispatch(&h.rt, "codex", "permission_request", &ctx, Some(&cfg), "hook", None, None).unwrap();
+    }
+    queue::cancel_codex_approval(&h.rt.paths, "s1", "a").unwrap();
+    let remaining = queue::load_queue(&h.rt.paths);
+    assert_eq!(remaining.iter().map(|it| (it.ctx.session_id.as_deref().unwrap(), it.ctx.tool_use_id.as_str())).collect::<Vec<_>>(), [("s1", "b"), ("s2", "a")]);
+    assert!(h.sent.lock().unwrap().is_empty());
+}
