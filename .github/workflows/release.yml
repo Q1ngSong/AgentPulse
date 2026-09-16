@@ -1,0 +1,202 @@
+# 一次触发 macOS / Windows 构建；全部校验通过后只生成 Release 草稿。
+name: Release
+run-name: Release ${{ inputs.tag || github.ref_name }} · macOS + Windows
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "已有版本 tag；留空则使用所选分支的版本号"
+        required: false
+        type: string
+      include_msi:
+        description: "同时生成 Windows MSI（默认只生成 EXE 安装包）"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.info.outputs.version }}
+      tag: ${{ steps.info.outputs.tag }}
+      commit: ${{ steps.info.outputs.commit }}
+      rust: ${{ steps.info.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node --test scripts/release-artifacts.test.mjs
+      - name: Check source, versions and existing release
+        id: info
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-artifacts.mjs check
+
+  build:
+    needs: prepare
+    name: Build ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            runner: macos-14
+            target: aarch64-apple-darwin
+          - platform: windows-x64
+            # 固定 Windows 系统版本，避免 latest 自动切换系统。
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      INCLUDE_MSI: ${{ inputs.include_msi }}
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.prepare.outputs.commit }}" }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ needs.prepare.outputs.rust }}
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: release-${{ matrix.platform }}
+          cache-on-failure: true
+      - run: pnpm install --frozen-lockfile
+      - name: Build macOS Hook and App
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          test "$(uname -m)" = arm64
+          mkdir -p src-tauri/binaries
+          printf '#!/bin/sh\n' > src-tauri/binaries/agentpulse-hook-aarch64-apple-darwin
+          chmod +x src-tauri/binaries/agentpulse-hook-aarch64-apple-darwin
+          cargo build --locked --release --manifest-path src-tauri/Cargo.toml --bin agentpulse-hook
+          cp src-tauri/target/release/agentpulse-hook src-tauri/binaries/agentpulse-hook-aarch64-apple-darwin
+          pnpm tauri build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
+      - name: Package and verify macOS DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          app=src-tauri/target/release/bundle/macos/AgentPulse.app
+          ls -la "$app/Contents"
+          find "$app" -maxdepth 3 -print | sort
+          codesign --verify --deep --strict --verbose=4 "$app"
+          spctl -a -vv "$app" || true
+          xattr -lr "$app" | head -n 80 || true
+          bash scripts/package-release.sh --installer-only
+          mount_dir="$(mktemp -d)"
+          trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true; rmdir "$mount_dir"' EXIT
+          hdiutil attach "release-assets/v${VERSION}/macos-arm64/AgentPulse_${VERSION}_aarch64.dmg" -readonly -nobrowse -mountpoint "$mount_dir"
+          codesign --verify --deep --strict --verbose=4 "$mount_dir/AgentPulse.app"
+          test "$(readlink "$mount_dir/Applications")" = /Applications
+          cmp src-tauri/icons/icon.icns "$mount_dir/AgentPulse.app/Contents/Resources/icon.icns"
+          test -x "$mount_dir/AgentPulse.app/Contents/MacOS/agentpulse-hook"
+      - name: Build Windows installers
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $bundles = if ($env:INCLUDE_MSI -eq 'true') { 'nsis,msi' } else { 'nsis' }
+          .\scripts\build-app.ps1 -Bundles $bundles -VerboseBuild
+          node scripts/release-artifacts.mjs collect windows-x64
+          if ($LASTEXITCODE -ne 0) { throw 'Installer collection failed' }
+      - name: Verify Windows installation and bundled Hook
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: .\scripts\verify-windows-installer.ps1 -Version $env:RELEASE_VERSION
+      - name: Run Rust tests on the build platform
+        run: cargo test --locked --release --manifest-path src-tauri/Cargo.toml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.platform }}
+          path: release-assets/${{ needs.prepare.outputs.tag }}/${{ matrix.platform }}/
+          if-no-files-found: error
+          retention-days: 14
+
+  draft:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-draft-${{ needs.prepare.outputs.tag }}
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      SOURCE_COMMIT: ${{ needs.prepare.outputs.commit }}
+      INCLUDE_MSI: ${{ inputs.include_msi }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.prepare.outputs.commit }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/download-artifact@v4
+        with:
+          name: installers-macos-arm64
+          path: collected/macos-arm64
+      - uses: actions/download-artifact@v4
+        with:
+          name: installers-windows-x64
+          path: collected/windows-x64
+      - name: Verify both platforms and assemble checksums
+        run: node scripts/release-artifacts.mjs assemble collected
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AgentPulse-${{ needs.prepare.outputs.tag }}-all-installers
+          path: release-assets/${{ needs.prepare.outputs.tag }}/all/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Create or update the matching draft
+        shell: bash
+        run: |
+          notes="$RUNNER_TEMP/release-notes.md"
+          cat > "$notes" <<EOF
+          AgentPulse ${TAG}
+
+          - macOS 13+ / Apple Silicon：下载 aarch64.dmg。
+          - Windows x64：下载 x64-setup.exe；如有 MSI，也可选择 MSI 安装包。
+          - 来源提交：${SOURCE_COMMIT}；文件与构建信息见 BUILD-INFO.json，校验值见 SHA256SUMS.txt。
+          - macOS 使用 ad-hoc 签名，未经过 Apple 公证；Windows 未配置代码签名。
+          - 本流程生成手动安装包，不包含自动更新清单；签名更新包仍可通过本地发布脚本生成。
+          - Windows 来源跳转、前台检测与提示音暂未实现。发布前请完成两个平台的实际通知与 Hook 接入验证。
+
+          使用说明：https://q1ngsong.github.io/AgentPulse/guide/
+          EOF
+          if gh release view "$TAG" --json isDraft,targetCommitish > "$RUNNER_TEMP/existing-release.json" 2>/dev/null; then
+            jq -e --arg sha "$SOURCE_COMMIT" '.isDraft == true and .targetCommitish == $sha' "$RUNNER_TEMP/existing-release.json"
+            gh release edit "$TAG" --notes-file "$notes"
+          else
+            gh release create "$TAG" --target "$SOURCE_COMMIT" --draft --title "AgentPulse $TAG" --notes-file "$notes"
+          fi
+          gh release upload "$TAG" release-assets/"$TAG"/all/* --clobber
+      - name: Download draft assets and verify uploaded bytes
+        shell: bash
+        run: |
+          verify_dir="$(mktemp -d)"
+          gh release download "$TAG" --dir "$verify_dir"
+          (cd "$verify_dir" && sha256sum -c SHA256SUMS.txt)
+          {
+            echo "## AgentPulse $TAG"
+            echo "macOS ARM64 + Windows x64 安装包已汇总到 Release 草稿。"
+            echo "[打开 Releases](https://github.com/$GH_REPO/releases)"
+            echo "也可下载本次运行的 all-installers Artifact。上传后的 SHA-256 校验通过。"
+          } >> "$GITHUB_STEP_SUMMARY"

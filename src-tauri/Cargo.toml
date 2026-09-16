@@ -1,0 +1,52 @@
+[package]
+name = "agentpulse"
+version = "0.1.1"
+description = "Claude Code / Codex 提醒控制面板"
+edition = "2021"
+license = "MIT"
+default-run = "agentpulse"
+rust-version = "1.85.0"
+
+[lib]
+name = "agentpulse_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "agentpulse-hook"
+path = "src/bin/hook.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[target.'cfg(target_os = "macos")'.build-dependencies]
+cc = "1"
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+auto-launch = "0.5"
+chrono = "0.4"
+regex = "1"
+fs2 = "0.4"
+uuid = { version = "1", features = ["v4"] }
+tempfile = "3"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+libc = "0.2"
+
+# 悬浮窗要换成"非激活面板"（overlay.rs::make_nonactivating_panel），tao 只给普通 NSWindow
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSPanel", "NSWindow", "NSResponder"] }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

@@ -1,0 +1,35 @@
+{
+  "base_url": "https://github.com/Q1ngSong/AgentPulse/releases/download/v0.1.0",
+  "files": [
+    {
+      "name": "pet-v1-working-atlas.webp",
+      "phase": "working",
+      "bytes": 4202608,
+      "sha256": "9c68ed923931975ef330ef31d85f0ff41e9067c343b171c73ec16e378d7e9090"
+    },
+    {
+      "name": "pet-v1-sleeping-atlas.webp",
+      "phase": "sleeping",
+      "bytes": 4412750,
+      "sha256": "ccc29eaeaf26e491d179c5933e4fe1f497c4b05b02f55c32d1a58a88600e8596"
+    },
+    {
+      "name": "pet-v1-permission-atlas.webp",
+      "phase": "permission_request",
+      "bytes": 4355418,
+      "sha256": "90152f58b3ec749df87463e82de208cc3e143f92890bf74d970438cd88e92746"
+    },
+    {
+      "name": "pet-v1-complete-atlas.webp",
+      "phase": "task_complete",
+      "bytes": 4282506,
+      "sha256": "a9c18e414dbccfc06c08ad2d84ba207e422b81866ae413d6ab7e4a0541655681"
+    },
+    {
+      "name": "pet-v1-neutral.png",
+      "phase": "",
+      "bytes": 119428,
+      "sha256": "5bda6fedf6bdab1050a3a466d7d539de893b9a5be0e6d3d22d7a744c2bd2ce28"
+    }
+  ]
+}

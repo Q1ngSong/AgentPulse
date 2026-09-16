@@ -1,0 +1,53 @@
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="545" viewBox="0 0 1200 545" role="img" aria-labelledby="title desc">
+  <title id="title">提醒分发与延迟取消流程</title>
+  <desc id="desc">Hook 事件先按卡片配置筛选，立即发送与延迟队列分开。延迟队列按来源 App 隔离，检测到处理后取消对应提醒，否则到期发送。</desc>
+  <!-- Brand icon: agentpulse-icon-v1-cropped.png, derived from v1. -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#8092aa" stroke-width="1.5"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-30%" width="140%" height="170%">
+      <feDropShadow dx="0" dy="7" stdDeviation="9" flood-color="#334965" flood-opacity=".12"/>
+    </filter>
+  </defs>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif">
+    <rect x="0" y="0" width="1200" height="545" rx="24" fill="#f4f7fb" stroke="none"/>
+    <text x="48" y="54" font-size="29" fill="#17243b" font-weight="650" text-anchor="start">发送流程</text>
+    <text x="48" y="88" font-size="18" fill="#65738a" font-weight="400" text-anchor="start">按卡片配置立即发送或延迟发送。检测到已处理时取消待发提醒。</text>
+    <rect x="48" y="213" width="205" height="112" rx="15" fill="#ffffff" stroke="#dce4ef"/>
+    <text x="68" y="247" font-size="21" fill="#17243b" font-weight="600" text-anchor="start">Claude / Codex</text>
+    <text x="68" y="276" font-size="16" fill="#65738a" font-weight="400" text-anchor="start">请求权限</text>
+    <text x="68" y="300" font-size="16" fill="#65738a" font-weight="400" text-anchor="start">任务完成</text>
+    <rect x="306" y="213" width="235" height="112" rx="15" fill="#ffffff" stroke="#dce4ef"/>
+    <text x="326" y="247" font-size="21" fill="#17243b" font-weight="600" text-anchor="start">按配置筛选</text>
+    <text x="326" y="276" font-size="16" fill="#65738a" font-weight="400" text-anchor="start">工具、事件、启用状态</text>
+    <path d="M253 269H296" fill="none" stroke="#8092aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <path d="M541 269H585V174H637" fill="none" stroke="#8092aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <path d="M585 269V344H637" fill="none" stroke="#8092aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <rect x="647" y="126" width="213" height="102" rx="15" fill="#eaf2fd" stroke="#dce4ef"/>
+    <text x="667" y="160" font-size="21" fill="#17243b" font-weight="600" text-anchor="start">立即发送</text>
+    <text x="667" y="189" font-size="16" fill="#65738a" font-weight="400" text-anchor="start">发送时机为「立即」</text>
+    <rect x="647" y="292" width="213" height="104" rx="15" fill="#ffffff" stroke="#dce4ef"/>
+    <text x="667" y="326" font-size="21" fill="#17243b" font-weight="600" text-anchor="start">进入延迟队列</text>
+    <text x="667" y="355" font-size="16" fill="#65738a" font-weight="400" text-anchor="start">等待设定的分钟数</text>
+    <path d="M860 177H920" fill="none" stroke="#8092aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <path d="M860 344H920" fill="none" stroke="#8092aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <rect x="930" y="126" width="222" height="102" rx="15" fill="#ffffff" stroke="#dce4ef"/>
+    <text x="950" y="160" font-size="21" fill="#17243b" font-weight="600" text-anchor="start">向所选渠道发送</text>
+    <text x="950" y="189" font-size="16" fill="#65738a" font-weight="400" text-anchor="start">本机 / 远程均可</text>
+    <rect x="930" y="292" width="222" height="104" rx="15" fill="#ffffff" stroke="#dce4ef"/>
+    <text x="950" y="326" font-size="21" fill="#17243b" font-weight="600" text-anchor="start">检测到已处理？</text>
+    <text x="950" y="355" font-size="16" fill="#65738a" font-weight="400" text-anchor="start">约每分钟检查一次</text>
+    <path d="M1041 396V414H976V439" fill="none" stroke="#8092aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <path d="M1041 414H1100V439" fill="none" stroke="#8092aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <text x="950" y="428" font-size="15" fill="#65738a" font-weight="400" text-anchor="start">是</text>
+    <text x="1115" y="428" font-size="15" fill="#65738a" font-weight="400" text-anchor="start">否</text>
+    <rect x="930" y="449" width="96" height="54" rx="12" fill="#e6f2ed" stroke="none"/>
+    <text x="978" y="482" font-size="16" fill="#267054" font-weight="600" text-anchor="middle">取消待发</text>
+    <rect x="1044" y="449" width="108" height="54" rx="12" fill="#eaf2fd" stroke="none"/>
+    <text x="1098" y="482" font-size="16" fill="#2475df" font-weight="600" text-anchor="middle">到期发送</text>
+    <text x="48" y="437" font-size="18" fill="#65738a" font-weight="400" text-anchor="start">延迟队列按来源 App 分开，消息不跨 App 合并。</text>
+    <text x="48" y="467" font-size="18" fill="#65738a" font-weight="400" text-anchor="start">返回一个 App，只清理这个 App 的提醒。</text>
+  </g>
+</svg>

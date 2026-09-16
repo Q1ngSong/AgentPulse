@@ -1,0 +1,34 @@
+.superpowers/
+.vscode/
+reference-projs/
+docs/
+*.DS_Store
+
+# 本地工具链（不入库）
+.toolchain/
+node_modules/
+.pnpm-store/
+dist/
+dist-site/
+/release-assets/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/binaries/
+.agents/
+.venv/
+__pycache__/
+*.py[cod]
+.comment-standard.json
+
+# DCLH 索引与派生报告
+.codegraph/
+codegraph.json
+
+# 旧版素材与移动端图标（仅保留在本地）
+/assets/agentpulse-icon-v1.png
+/assets/channels.svg
+/src-tauri/icons/android/
+/src-tauri/icons/ios/
+
+# 桌宠原画、逐帧图片与下载资源（独立分发，不进安装包）
+/assets/pet/

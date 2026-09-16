@@ -1,0 +1,127 @@
+/* 悬浮窗有自己的透明根节点；不导入控制面板的 Tailwind / bg-background。 */
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  color: #202024;
+  -webkit-font-smoothing: antialiased;
+  --hover: rgba(255, 255, 255, .12);
+  --close: rgba(30, 30, 35, .08);
+  --close-hover: rgba(30, 30, 35, .16);
+  --edge: rgba(255, 255, 255, .4);
+}
+
+html, body, #root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+button:focus-visible { outline: 2px solid #0a84ff; outline-offset: -3px; }
+
+.overlay-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  user-select: none;
+  /* 阴影由原生窗口绘制，避免被 WebView 的矩形边缘裁切。 */
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
+
+.overlay-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 10px 14px;
+  border-radius: inherit;
+  background: transparent;
+  text-align: left;
+  transition: background .15s ease;
+}
+.overlay-content:hover { background: var(--hover); }
+.overlay-content:disabled { cursor: default; }
+.overlay-icon { width: 20px; height: 20px; flex: none; object-fit: contain; }
+.overlay-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  animation: overlay-in .2s ease-out;
+}
+.overlay-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-right: 24px;
+}
+.overlay-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 17px;
+  font-weight: 600;
+}
+.overlay-body {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  font-size: 13px;
+  line-height: 17px;
+  opacity: .78;
+}
+.overlay-error { font-size: 11px; line-height: 14px; color: #b42318; }
+.overlay-copy:has(.overlay-error) .overlay-body { -webkit-line-clamp: 2; }
+.overlay-close {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--close);
+  opacity: 0;
+  transition: opacity .12s ease, background .12s ease;
+}
+.overlay-card:hover .overlay-close, .overlay-close:focus-visible { opacity: 1; }
+.overlay-close:hover { background: var(--close-hover); }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #f5f5f7;
+    --hover: rgba(255, 255, 255, .04);
+    --close: rgba(255, 255, 255, .12);
+    --close-hover: rgba(255, 255, 255, .22);
+    --edge: rgba(255, 255, 255, .15);
+  }
+  .overlay-error { color: #ffb4ab; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .overlay-card { background: #ececee; }
+}
+@media (prefers-reduced-transparency: reduce) and (prefers-color-scheme: dark) {
+  .overlay-card { background: #303034; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .overlay-copy { animation: none; }
+  .overlay-content, .overlay-close { transition: none; }
+}
+@keyframes overlay-in {
+  from { opacity: 0; transform: translateX(4px); }
+  to { opacity: 1; transform: none; }
+}

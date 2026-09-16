@@ -1,0 +1,36 @@
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="345" viewBox="0 0 1200 345" role="img" aria-labelledby="title desc">
+  <title id="title">接入与验证步骤</title>
+  <desc id="desc">固定 App 位置后接入工具，配置各类提醒，再测试并新开会话。测试立即真实发送，模拟触发保留延迟。</desc>
+  <!-- Brand icon: agentpulse-icon-v1-cropped.png, derived from v1. -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#8092aa" stroke-width="1.5"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-30%" width="140%" height="170%">
+      <feDropShadow dx="0" dy="7" stdDeviation="9" flood-color="#334965" flood-opacity=".12"/>
+    </filter>
+  </defs>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif">
+    <rect x="0" y="0" width="1200" height="345" rx="24" fill="#f4f7fb" stroke="none"/>
+    <text x="48" y="54" font-size="29" fill="#17243b" font-weight="650" text-anchor="start">使用步骤</text>
+    <text x="48" y="113" font-size="18" fill="#2475df" font-weight="650" text-anchor="start">01</text>
+    <text x="48" y="153" font-size="24" fill="#17243b" font-weight="650" text-anchor="start">接入工具</text>
+    <text x="48" y="193" font-size="17" fill="#65738a" font-weight="400" text-anchor="start">把 App 放在固定位置</text>
+    <text x="48" y="222" font-size="17" fill="#65738a" font-weight="400" text-anchor="start">设置 → 工具接入</text>
+    <text x="48" y="251" font-size="17" fill="#65738a" font-weight="400" text-anchor="start">移动 App 后需重新接入</text>
+    <text x="440" y="113" font-size="18" fill="#2475df" font-weight="650" text-anchor="start">02</text>
+    <text x="440" y="153" font-size="24" fill="#17243b" font-weight="650" text-anchor="start">配置提醒</text>
+    <text x="440" y="193" font-size="17" fill="#65738a" font-weight="400" text-anchor="start">选择 Claude Code 或 Codex</text>
+    <text x="440" y="222" font-size="17" fill="#65738a" font-weight="400" text-anchor="start">编辑弹窗、声音与远程渠道</text>
+    <text x="440" y="251" font-size="17" fill="#65738a" font-weight="400" text-anchor="start">按事件设置发送时机</text>
+    <text x="832" y="113" font-size="18" fill="#2475df" font-weight="650" text-anchor="start">03</text>
+    <text x="832" y="153" font-size="24" fill="#17243b" font-weight="650" text-anchor="start">测试并新开会话</text>
+    <text x="832" y="193" font-size="17" fill="#65738a" font-weight="400" text-anchor="start">卡片「测试」会立即真实发送</text>
+    <text x="832" y="222" font-size="17" fill="#65738a" font-weight="400" text-anchor="start">「模拟触发」保留延迟规则</text>
+    <text x="832" y="251" font-size="17" fill="#65738a" font-weight="400" text-anchor="start">新会话才会读取 Hook 配置</text>
+    <path d="M360 145H411" fill="none" stroke="#a9b7cb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <path d="M753 145H803" fill="none" stroke="#a9b7cb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <text x="48" y="308" font-size="17" fill="#65738a" font-weight="400" text-anchor="start">发送结果与失败原因见「提醒记录」。系统通知请使用打包后的 .app 验证。</text>
+  </g>
+</svg>

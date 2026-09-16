@@ -1,0 +1,23 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: node --test scripts/release-artifacts.test.mjs
+      - run: node --experimental-strip-types --test src/lib/pet-player.test.ts
+      - run: pnpm build:renderer
+      - run: pnpm build:site
+      - name: externalBin 占位（tauri-build 要求存在）
+        run: mkdir -p src-tauri/binaries && printf '#!/bin/sh\n' > src-tauri/binaries/agentpulse-hook-aarch64-apple-darwin && chmod +x src-tauri/binaries/agentpulse-hook-aarch64-apple-darwin
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
