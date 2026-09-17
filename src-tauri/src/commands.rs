@@ -277,6 +277,12 @@ pub fn read_events(limit: Option<usize>) -> R<Vec<Value>> {
     Ok(log::read_events(&Paths::from_env(), limit.unwrap_or(300)))
 }
 
+/// 提醒记录页顶部的队列胶囊：与延迟队列 worker 读的是同一份 queue.json。
+#[tauri::command]
+pub fn read_queue() -> R<Vec<queue::Item>> {
+    Ok(queue::load_queue(&Paths::from_env()))
+}
+
 #[tauri::command]
 pub fn clear_events() -> R<()> {
     log::clear_events(&Paths::from_env()).map_err(err)

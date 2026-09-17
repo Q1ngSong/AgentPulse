@@ -58,6 +58,9 @@ export interface EventRecord {
   id: string; ts: number; source: "hook" | "simulate" | "test" | "delayed"; agent: ToolKey; event: EventKey;
   project?: string; title: string; body: string; results: SendResult[]; payload?: unknown;
 }
+export interface QueueItem {
+  ref: string; created: number; agent: ToolKey; event: EventKey; title: string; body: string; targets: string[];
+}
 export interface Sound { ref: string; name: string; kind: "system" | "custom"; ext: string; size: number | null }
 
 export const api = {
@@ -88,6 +91,7 @@ export const api = {
   trustCodexHooks: (hooks: CodexHook[]) => invoke<{ hooks: CodexHook[] }>("trust_codex_hooks", { hooks }),
   uninstall: (agent: ToolKey) => invoke<Integration>("uninstall_integration", { agent }),
   readEvents: (limit = 300) => invoke<EventRecord[]>("read_events", { limit }),
+  readQueue: () => invoke<QueueItem[]>("read_queue"),
   clearEvents: () => invoke<void>("clear_events"),
   reveal: (key: string) => invoke<void>("reveal", { key }),
   uploadToolIcon: (agent: ToolKey, filename: string, data: Uint8Array) => invoke<void>("upload_tool_icon", { agent, filename, data: Array.from(data) }),
