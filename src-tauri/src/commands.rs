@@ -283,6 +283,17 @@ pub fn read_queue() -> R<Vec<queue::Item>> {
     Ok(queue::load_queue(&Paths::from_env()))
 }
 
+/// 面板点「刷新」时顺手催一轮：不等 worker 下次醒来，立刻跑一遍撤销/发送判断。
+/// 用一次性的 states，不影响后台 worker 自己的连续状态。
+#[tauri::command]
+pub async fn check_queue_now() -> R<Vec<queue::Item>> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let rt = rt();
+        queue::run_pass(&rt, &mut std::collections::HashMap::new()).map_err(err)?;
+        Ok(queue::load_queue(&rt.paths))
+    }).await.map_err(err)?
+}
+
 #[tauri::command]
 pub fn clear_events() -> R<()> {
     log::clear_events(&Paths::from_env()).map_err(err)

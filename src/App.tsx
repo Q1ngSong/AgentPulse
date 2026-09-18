@@ -123,7 +123,7 @@ export default function App() {
             </div>
             <div className="flex items-center gap-1">
               {view.name === "records" && (<>
-                <Button variant="ghost" size="sm" onClick={() => { qc.invalidateQueries({ queryKey: ["events"] }); toast.success("已刷新"); }}><RefreshCw className="h-3.5 w-3.5" />刷新</Button>
+                <Button variant="ghost" size="sm" onClick={() => { qc.invalidateQueries({ queryKey: ["events"] }); qc.invalidateQueries({ queryKey: ["queue"] }); toast.success("已刷新"); }}><RefreshCw className="h-3.5 w-3.5" />刷新</Button>
                 <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={clearRecords}><Trash2 className="h-3.5 w-3.5" />清空</Button>
               </>)}
               {view.name === "library" && <Button variant="ghost" size="sm" onClick={() => api.reveal("sounds")}><FolderOpen className="h-3.5 w-3.5" />打开文件夹</Button>}

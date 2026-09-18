@@ -92,6 +92,7 @@ export const api = {
   uninstall: (agent: ToolKey) => invoke<Integration>("uninstall_integration", { agent }),
   readEvents: (limit = 300) => invoke<EventRecord[]>("read_events", { limit }),
   readQueue: () => invoke<QueueItem[]>("read_queue"),
+  checkQueueNow: () => invoke<QueueItem[]>("check_queue_now"),
   clearEvents: () => invoke<void>("clear_events"),
   reveal: (key: string) => invoke<void>("reveal", { key }),
   uploadToolIcon: (agent: ToolKey, filename: string, data: Uint8Array) => invoke<void>("upload_tool_icon", { agent, filename, data: Array.from(data) }),

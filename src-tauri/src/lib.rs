@@ -82,7 +82,7 @@ pub fn run() {
             commands::get_state, commands::save_tool_targets, commands::copy_target, commands::save_templates,
             commands::test_target, commands::save_pets, commands::test_pet, commands::simulate, commands::list_sounds, commands::upload_sound,
             commands::rename_sound, commands::delete_sound, commands::preview_sound,
-            commands::install_integration, commands::uninstall_integration, commands::read_events, commands::read_queue, commands::clear_events,
+            commands::install_integration, commands::uninstall_integration, commands::read_events, commands::read_queue, commands::check_queue_now, commands::clear_events,
             commands::review_codex_hooks, commands::trust_codex_hooks,
             commands::reveal, commands::activate_app,
             commands::upload_tool_icon, commands::delete_tool_icon,

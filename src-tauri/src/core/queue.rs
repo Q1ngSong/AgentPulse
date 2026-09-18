@@ -203,123 +203,130 @@ pub fn run_queue_worker(rt: &Runtime) -> std::io::Result<()> {
 fn queue_loop(rt: &Runtime) -> std::io::Result<()> {
     let mut states: HashMap<(String, String), State> = HashMap::new();
     loop {
-        let items = {
-            let _lock = FileLock::acquire(&rt.paths.queue_lock())?;
-            let items = load_queue(&rt.paths);
-            if items.is_empty() {
-                return Ok(());
-            }
-            items
-        };
-        let now = log::now();
-        let cfg = config::load_config(&rt.paths)?;
-        let agents: BTreeSet<String> = items.iter().map(|it| it.agent.clone()).collect();
-        let targets_of: HashMap<String, HashMap<String, Target>> = agents.iter()
-            .map(|a| (a.clone(), cfg.tool_targets(a).into_iter().map(|t| (t.id.clone(), t)).collect())).collect();
-        let groups: BTreeSet<(String, String)> = items.iter().map(|it| (it.agent.clone(), it.ctx.host_bundle.clone())).collect();
-
-        let mut drop_refs: BTreeSet<String> = BTreeSet::new();
-        let mut outcomes: Vec<(String, Vec<Item>, bool)> = Vec::new(); // (tid, batch, finished)
-        for (agent, host) in &groups {
-            let group: Vec<Item> = items.iter().filter(|it| &it.agent == agent && &it.ctx.host_bundle == host).cloned().collect();
-            let empty = HashMap::new();
-            let targets = targets_of.get(agent).unwrap_or(&empty);
-            let state = states.entry((agent.clone(), host.clone())).or_default();
-            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let plan = plan_group(rt, agent, &group, targets, now, state);
-                let mut local = Vec::new();
-                for (items_, results, title, body) in &plan.logs {
-                    log_delayed(&rt.paths, items_, results, title, body);
-                }
-                for (target, tid, batch) in plan.sends {
-                    let Some(target) = target else { local.push((tid, batch, true)); continue };
-                    // 前一批发送期间配置可能已变化，每批发送前重新核对。
-                    let current = match config::load_config(&rt.paths) {
-                        Ok(cfg) => cfg.tool_targets(agent).into_iter().find(|t| t.id == tid && t.enabled),
-                        Err(e) => {
-                            let r = SendResult { target_id: Some(tid), name: target.name, error: Some(format!("无法读取配置，暂缓发送：{e}")), ..Default::default() };
-                            log_delayed(&rt.paths, &batch, &[r], &batch[0].title, &batch[0].body);
-                            continue;
-                        }
-                    };
-                    // 审批观察器可能已在规划后取消了某个请求；每次投递前重新核对队列。
-                    let live: BTreeSet<String> = {
-                        let Ok(_lock) = FileLock::acquire(&rt.paths.queue_lock()) else { continue };
-                        load_queue(&rt.paths).into_iter().map(|it| it.r#ref).collect()
-                    };
-                    let batch: Vec<Item> = batch.into_iter().filter(|it| live.contains(&it.r#ref)).collect();
-                    let (batch, cancelled): (Vec<Item>, Vec<Item>) = batch.into_iter()
-                        .partition(|it| current.as_ref().is_some_and(|t| t.events.contains(&it.event)));
-                    if !cancelled.is_empty() {
-                        let reason = if current.is_some() { "已取消事件订阅" } else { "提醒方式已删除或停用" };
-                        log_delayed(&rt.paths, &cancelled, &[skip(Some(&tid), &target.name, format!("未发送：{reason}"))], &cancelled[0].title, &cancelled[0].body);
-                        local.push((tid.clone(), cancelled, true));
-                    }
-                    if batch.is_empty() { continue; }
-                    let target = current.unwrap();
-                    let (event, title, body) = merged_message(&batch);
-                    let msg = Message { event, title: title.clone(), body: body.clone(), agent: agent.clone(), ctx: batch.last().unwrap().ctx.clone() };
-                    let mut r = rt.channels.send_one(&target, &msg);
-                    let mut head = format!("{} 分钟内无人处理，{}", delay_minutes(&target), if batch.len() > 1 { format!("合并 {} 条发送", batch.len()) } else { "已发送".into() });
-                    if !r.ok {
-                        let exhausted = batch.iter().filter(|it| it.attempts.get(&tid).copied().unwrap_or(0) + 1 >= MAX_ATTEMPTS).count();
-                        head += "，发送失败";
-                        if exhausted < batch.len() { head += &format!("，{} 条稍后重试", batch.len() - exhausted); }
-                        if exhausted > 0 { head += &format!("，{exhausted} 条不再重试"); }
-                    }
-                    r.info = Some(match r.info.take() { Some(i) => format!("{head}（{i}）"), None => head });
-                    log_delayed(&rt.paths, &batch, std::slice::from_ref(&r), &title, &body);
-                    local.push((tid, batch, r.ok));
-                }
-                (plan.drop_refs, local)
-            }));
-            match outcome {
-                Ok((refs, local)) => { drop_refs.extend(refs); outcomes.extend(local); }
-                Err(e) => {
-                    let msg = e.downcast_ref::<String>().cloned().or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
-                    drop_refs.extend(group.iter().map(|it| it.r#ref.clone()));
-                    log_delayed(&rt.paths, &group, &[skip(None, "延迟队列", format!("处理出错，已丢弃 {} 条：{msg}", group.len()))], &group[0].title, &group[0].body);
-                }
-            }
-        }
-
-        let next_due = {
-            let _lock = FileLock::acquire(&rt.paths.queue_lock())?;
-            let mut fresh = load_queue(&rt.paths); // 发送期间可能有新提醒入队
-            for (tid, batch, done) in &outcomes {
-                for sent in batch {
-                    let Some(it) = fresh.iter_mut().find(|it| it.r#ref == sent.r#ref) else { continue };
-                    if !it.targets.contains(tid) {
-                        continue;
-                    }
-                    let n = it.attempts.get(tid).copied().unwrap_or(0) + 1;
-                    if *done || n >= MAX_ATTEMPTS {
-                        it.targets.retain(|t| t != tid);
-                    } else {
-                        it.attempts.insert(tid.clone(), n);
-                        it.next_try.insert(tid.clone(), log::now() + RETRY_SECONDS * n as f64);
-                    }
-                }
-            }
-            let seen_refs: BTreeSet<&String> = items.iter().map(|it| &it.r#ref).collect();
-            let keep: Vec<Item> = fresh.into_iter().filter(|it| !drop_refs.contains(&it.r#ref) && !it.targets.is_empty()).collect();
-            save_queue(&rt.paths, &keep)?;
-            let still: BTreeSet<(&str, &str)> = keep.iter().filter(|it| seen_refs.contains(&it.r#ref))
-                .map(|it| (it.agent.as_str(), it.ctx.host_bundle.as_str())).collect();
-            // 本轮已处理完的 App / 工具组合清掉状态；同一工具在其他 App 的状态继续保留。
-            states.retain(|(agent, host), _| still.contains(&(agent.as_str(), host.as_str())));
-            if keep.is_empty() {
-                return Ok(());
-            }
-            let targets_ref = &targets_of;
-            keep.iter().flat_map(|it| it.targets.iter().map(move |tid| {
-                let d = targets_ref.get(&it.agent).and_then(|m| m.get(tid)).map(delay_minutes).unwrap_or(0) as f64;
-                (it.created + d * 60.0).max(it.next_try.get(tid).copied().unwrap_or(0.0))
-            })).fold(f64::INFINITY, f64::min)
-        };
+        let Some(next_due) = run_pass(rt, &mut states)? else { return Ok(()) };
         let wait = (next_due - log::now()).min(QUEUE_POLL_SECONDS).max(1.0);
         (rt.sleep)(Duration::from_secs_f64(wait));
     }
+}
+
+/// 处理一轮队列：撤销该撤销的、发送到期且无人处理的；空队列返回 None，否则返回下次该醒来的时间戳。
+/// worker 循环反复调用它；面板的「立即检查」命令也调用它单独跑一轮，用一次性的 states 不影响 worker 的连续状态。
+pub fn run_pass(rt: &Runtime, states: &mut HashMap<(String, String), State>) -> std::io::Result<Option<f64>> {
+    let items = {
+        let _lock = FileLock::acquire(&rt.paths.queue_lock())?;
+        let items = load_queue(&rt.paths);
+        if items.is_empty() {
+            return Ok(None);
+        }
+        items
+    };
+    let now = log::now();
+    let cfg = config::load_config(&rt.paths)?;
+    let agents: BTreeSet<String> = items.iter().map(|it| it.agent.clone()).collect();
+    let targets_of: HashMap<String, HashMap<String, Target>> = agents.iter()
+        .map(|a| (a.clone(), cfg.tool_targets(a).into_iter().map(|t| (t.id.clone(), t)).collect())).collect();
+    let groups: BTreeSet<(String, String)> = items.iter().map(|it| (it.agent.clone(), it.ctx.host_bundle.clone())).collect();
+
+    let mut drop_refs: BTreeSet<String> = BTreeSet::new();
+    let mut outcomes: Vec<(String, Vec<Item>, bool)> = Vec::new(); // (tid, batch, finished)
+    for (agent, host) in &groups {
+        let group: Vec<Item> = items.iter().filter(|it| &it.agent == agent && &it.ctx.host_bundle == host).cloned().collect();
+        let empty = HashMap::new();
+        let targets = targets_of.get(agent).unwrap_or(&empty);
+        let state = states.entry((agent.clone(), host.clone())).or_default();
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let plan = plan_group(rt, agent, &group, targets, now, state);
+            let mut local = Vec::new();
+            for (items_, results, title, body) in &plan.logs {
+                log_delayed(&rt.paths, items_, results, title, body);
+            }
+            for (target, tid, batch) in plan.sends {
+                let Some(target) = target else { local.push((tid, batch, true)); continue };
+                // 前一批发送期间配置可能已变化，每批发送前重新核对。
+                let current = match config::load_config(&rt.paths) {
+                    Ok(cfg) => cfg.tool_targets(agent).into_iter().find(|t| t.id == tid && t.enabled),
+                    Err(e) => {
+                        let r = SendResult { target_id: Some(tid), name: target.name, error: Some(format!("无法读取配置，暂缓发送：{e}")), ..Default::default() };
+                        log_delayed(&rt.paths, &batch, &[r], &batch[0].title, &batch[0].body);
+                        continue;
+                    }
+                };
+                // 审批观察器可能已在规划后取消了某个请求；每次投递前重新核对队列。
+                let live: BTreeSet<String> = {
+                    let Ok(_lock) = FileLock::acquire(&rt.paths.queue_lock()) else { continue };
+                    load_queue(&rt.paths).into_iter().map(|it| it.r#ref).collect()
+                };
+                let batch: Vec<Item> = batch.into_iter().filter(|it| live.contains(&it.r#ref)).collect();
+                let (batch, cancelled): (Vec<Item>, Vec<Item>) = batch.into_iter()
+                    .partition(|it| current.as_ref().is_some_and(|t| t.events.contains(&it.event)));
+                if !cancelled.is_empty() {
+                    let reason = if current.is_some() { "已取消事件订阅" } else { "提醒方式已删除或停用" };
+                    log_delayed(&rt.paths, &cancelled, &[skip(Some(&tid), &target.name, format!("未发送：{reason}"))], &cancelled[0].title, &cancelled[0].body);
+                    local.push((tid.clone(), cancelled, true));
+                }
+                if batch.is_empty() { continue; }
+                let target = current.unwrap();
+                let (event, title, body) = merged_message(&batch);
+                let msg = Message { event, title: title.clone(), body: body.clone(), agent: agent.clone(), ctx: batch.last().unwrap().ctx.clone() };
+                let mut r = rt.channels.send_one(&target, &msg);
+                let mut head = format!("{} 分钟内无人处理，{}", delay_minutes(&target), if batch.len() > 1 { format!("合并 {} 条发送", batch.len()) } else { "已发送".into() });
+                if !r.ok {
+                    let exhausted = batch.iter().filter(|it| it.attempts.get(&tid).copied().unwrap_or(0) + 1 >= MAX_ATTEMPTS).count();
+                    head += "，发送失败";
+                    if exhausted < batch.len() { head += &format!("，{} 条稍后重试", batch.len() - exhausted); }
+                    if exhausted > 0 { head += &format!("，{exhausted} 条不再重试"); }
+                }
+                r.info = Some(match r.info.take() { Some(i) => format!("{head}（{i}）"), None => head });
+                log_delayed(&rt.paths, &batch, std::slice::from_ref(&r), &title, &body);
+                local.push((tid, batch, r.ok));
+            }
+            (plan.drop_refs, local)
+        }));
+        match outcome {
+            Ok((refs, local)) => { drop_refs.extend(refs); outcomes.extend(local); }
+            Err(e) => {
+                let msg = e.downcast_ref::<String>().cloned().or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+                drop_refs.extend(group.iter().map(|it| it.r#ref.clone()));
+                log_delayed(&rt.paths, &group, &[skip(None, "延迟队列", format!("处理出错，已丢弃 {} 条：{msg}", group.len()))], &group[0].title, &group[0].body);
+            }
+        }
+    }
+
+    let next_due = {
+        let _lock = FileLock::acquire(&rt.paths.queue_lock())?;
+        let mut fresh = load_queue(&rt.paths); // 发送期间可能有新提醒入队
+        for (tid, batch, done) in &outcomes {
+            for sent in batch {
+                let Some(it) = fresh.iter_mut().find(|it| it.r#ref == sent.r#ref) else { continue };
+                if !it.targets.contains(tid) {
+                    continue;
+                }
+                let n = it.attempts.get(tid).copied().unwrap_or(0) + 1;
+                if *done || n >= MAX_ATTEMPTS {
+                    it.targets.retain(|t| t != tid);
+                } else {
+                    it.attempts.insert(tid.clone(), n);
+                    it.next_try.insert(tid.clone(), log::now() + RETRY_SECONDS * n as f64);
+                }
+            }
+        }
+        let seen_refs: BTreeSet<&String> = items.iter().map(|it| &it.r#ref).collect();
+        let keep: Vec<Item> = fresh.into_iter().filter(|it| !drop_refs.contains(&it.r#ref) && !it.targets.is_empty()).collect();
+        save_queue(&rt.paths, &keep)?;
+        let still: BTreeSet<(&str, &str)> = keep.iter().filter(|it| seen_refs.contains(&it.r#ref))
+            .map(|it| (it.agent.as_str(), it.ctx.host_bundle.as_str())).collect();
+        // 本轮已处理完的 App / 工具组合清掉状态；同一工具在其他 App 的状态继续保留。
+        states.retain(|(agent, host), _| still.contains(&(agent.as_str(), host.as_str())));
+        if keep.is_empty() {
+            return Ok(None);
+        }
+        let targets_ref = &targets_of;
+        keep.iter().flat_map(|it| it.targets.iter().map(move |tid| {
+            let d = targets_ref.get(&it.agent).and_then(|m| m.get(tid)).map(delay_minutes).unwrap_or(0) as f64;
+            (it.created + d * 60.0).max(it.next_try.get(tid).copied().unwrap_or(0.0))
+        })).fold(f64::INFINITY, f64::min)
+    };
+    Ok(Some(next_due))
 }
 
 /// 面板统计用：每个工具待发条数。

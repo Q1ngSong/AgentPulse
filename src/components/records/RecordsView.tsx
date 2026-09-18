@@ -10,7 +10,9 @@ const SRC: Record<string, string> = { simulate: "模拟", test: "测试", delaye
 
 export function RecordsView({ state, tool }: { state: State; tool: ToolKey }) {
   const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => api.readEvents(300), refetchInterval: 5000 });
-  const { data: queue = [] } = useQuery({ queryKey: ["queue"], queryFn: api.readQueue, refetchInterval: 5000 });
+  // 用 checkQueueNow 而不是只读的 readQueue：每次取数据（含自动轮询、手动刷新）都顺手催一轮 worker 的撤销/发送判断，
+  // 不用等它自己最多 60 秒才醒来；到期时间不受影响，这只让撤销判断更及时。
+  const { data: queue = [] } = useQuery({ queryKey: ["queue"], queryFn: api.checkQueueNow, refetchInterval: 5000 });
   const [scope, setScope] = useState<ToolKey | "all">(tool);
   const [event, setEvent] = useState<EventKey | "">("");
   const [failed, setFailed] = useState(false);
