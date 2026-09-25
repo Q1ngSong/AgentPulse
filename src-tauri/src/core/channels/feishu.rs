@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use sha2::Sha256;
 
 use super::http::http_json;
-use super::{Channel, Message};
+use super::{external_body, Channel, Message};
 use crate::core::config::Target;
 
 pub struct Feishu;
@@ -17,7 +17,8 @@ impl Channel for Feishu {
             return Err("ValueError: 未填写有效的飞书 Webhook 地址".into());
         }
         let color = if message.event == "permission_request" { "orange" } else { "green" };
-        let body = if message.body.is_empty() { " " } else { &message.body };
+        let text = external_body(message);
+        let body = if text.is_empty() { " " } else { &text };
         let mut msg = json!({
             "msg_type": "interactive",
             "card": {

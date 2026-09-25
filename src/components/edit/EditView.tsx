@@ -1,7 +1,7 @@
 /* 整页添加 / 编辑一张提醒方式卡片 */
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Check, ChevronLeft, Clock, Eye, Info, MessageSquare, Monitor, Play, Plus, Send, Upload, Volume2, X, Zap } from "lucide-react";
+import { Bell, Check, ChevronLeft, Clock, Eye, Image as ImageIcon, Info, MessageSquare, Monitor, Play, Plus, Send, Upload, Volume2, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,8 @@ const Row = ({ label, children, top }: { label: React.ReactNode; children: React
   <div className="grid grid-cols-[96px_1fr] items-center gap-x-4 gap-y-3"><div className={cn("text-[13px] text-muted-foreground", top && "self-start pt-2")}>{label}</div><div>{children}</div></div>
 );
 const Hint = ({ children }: { children: React.ReactNode }) => <div className="mt-1 text-xs text-muted-foreground">{children}</div>;
+// 微信只显示「名称：{{字段.DATA}}」这样的行；字段与 wxtest.rs 的 template_data 一致。
+const WX_TEMPLATE = ["设备：{{device.DATA}}", "应用：{{app.DATA}}", "项目：{{project.DATA}}", "标题：{{title.DATA}}", "内容：{{body.DATA}}", "时间：{{time.DATA}}"].join("\n");
 
 export function EditView({ state, tool, view, onDone, onLibrary, confirm }: EditProps) {
   const qc = useQueryClient();
@@ -54,6 +56,23 @@ export function EditView({ state, tool, view, onDone, onLibrary, confirm }: Edit
     input.type = "file"; input.accept = ".mp3,.wav,.aiff,.aif,.m4a,.caf,audio/*"; input.multiple = true;
     input.onchange = () => input.files && upload(input.files);
     input.click();
+  };
+
+  // 悬浮窗图标按工具保存、上传即生效，不跟卡片的「保存」走；系统通知由 macOS 画，用不上它。
+  const icon = state.icons[tool];
+  const pickIcon = () => {
+    const i = document.createElement("input");
+    i.type = "file"; i.accept = ".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif";
+    i.onchange = async () => {
+      const f = i.files?.[0]; if (!f) return;
+      try { await api.uploadToolIcon(tool, f.name, new Uint8Array(await f.arrayBuffer())); qc.invalidateQueries({ queryKey: ["state"] }); toast.success("已上传"); }
+      catch (e) { toast.error("上传失败", { description: String(e) }); }
+    };
+    i.click();
+  };
+  const removeIcon = async () => {
+    try { await api.deleteToolIcon(tool); qc.invalidateQueries({ queryKey: ["state"] }); toast.success("已恢复自动图标"); }
+    catch (e) { toast.error("删除失败", { description: String(e) }); }
   };
 
   const testDraft = async (event: EventKey) => {
@@ -118,6 +137,17 @@ export function EditView({ state, tool, view, onDone, onLibrary, confirm }: Edit
               </button>))}
           </div>
           {t.mode !== "system" && <p className="mt-3 text-xs text-muted-foreground">返回来源 App 时，清除它已显示的全部悬浮提醒；关闭按钮只移除单条。</p>}
+          {(t.mode === "overlay" || t.mode === "both") && (
+            <div className="mt-3 flex items-center gap-2.5 rounded-lg border px-3.5 py-2.5 text-[13px]">
+              <div className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-md border bg-muted">
+                {icon ? <img src={icon} alt="" className="h-full w-full object-cover" /> : <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />}
+              </div>
+              <span className="text-muted-foreground">悬浮窗图标：{icon ? "自定义" : "未设置，自动使用来源 App 的图标"}</span>
+              <span className="flex-1" />
+              <Button size="sm" variant="ghost" onClick={pickIcon}>{icon ? "更换" : "上传自定义图标"}</Button>
+              {icon && <Button size="sm" variant="ghost" className="hover:bg-red-50 hover:text-red-500" onClick={removeIcon}>删除</Button>}
+            </div>
+          )}
         </Panel>
         <Panel><div className="flex flex-col gap-3.5">
           <Row label="接收提醒">{eventPills}</Row>
@@ -164,7 +194,8 @@ export function EditView({ state, tool, view, onDone, onLibrary, confirm }: Edit
           <Row label="appsecret"><Input type="password" className="font-mono text-xs" value={t.secret ?? ""} onChange={(e) => patch({ secret: e.target.value })} placeholder="测试号信息里的 appsecret" /></Row>
           <Row label="openid"><Input className="font-mono text-xs" value={t.openid ?? ""} onChange={(e) => patch({ openid: e.target.value })} placeholder="用户列表里的微信号，多个用逗号分隔" /></Row>
           <Row label="模板 ID" top><Input className="font-mono text-xs" value={t.template_id ?? ""} onChange={(e) => patch({ template_id: e.target.value })} placeholder="新增测试模板后得到的 ID" />
-            <Hint>模板内容需包含 <code>{"{{title.DATA}}"}</code> <code>{"{{body.DATA}}"}</code> <code>{"{{time.DATA}}"}</code> · <a className="text-blue-500 hover:underline" href="https://mp.weixin.qq.com/debug/cgi-bin/sandbox?t=sandbox/login" target="_blank" rel="noreferrer">打开测试号页面</a></Hint></Row>
+            <Hint>微信只显示「名称：{"{{字段.DATA}}"}」这样的行，模板内容照下面填（点一下全选） · <a className="text-blue-500 hover:underline" href="https://mp.weixin.qq.com/debug/cgi-bin/sandbox?t=sandbox/login" target="_blank" rel="noreferrer">打开测试号页面</a>
+              <pre className="mt-1.5 select-all whitespace-pre rounded-md bg-muted px-3 py-2 font-mono text-[11px] leading-5 text-foreground">{WX_TEMPLATE}</pre></Hint></Row>
         </div></Panel>
         {delivery}
       </>)}

@@ -35,6 +35,10 @@ pub struct Context {
     pub project: String,
     pub session: String,
     pub host_bundle: String,
+    /// 本机名称，外部渠道靠它分辨是哪台设备发的。
+    pub device: String,
+    /// 来源 App 的显示名，比如 Claude、ChatGPT、终端。
+    pub app: String,
     pub session_id: Option<String>,
     pub tool_name: Option<String>,
     pub tool_use_id: String,
@@ -115,6 +119,11 @@ pub fn normalize(agent: &str, payload: &Value, home: &Path) -> Option<(String, C
     if event == "task_complete" && payload.get("stop_hook_active").and_then(Value::as_bool).unwrap_or(false) {
         return None;
     }
+    // Stop 只代表这一轮回复结束，不代表任务做完了：还有后台子任务（子代理、后台命令、监视器）在跑
+    // 就不算数，等它们都结束、下一次真正的 Stop 不带 background_tasks 时再提醒。
+    if event == "task_complete" && payload.get("background_tasks").and_then(Value::as_array).is_some_and(|a| !a.is_empty()) {
+        return None;
+    }
     if agent == "codex" && event == "task_complete" {
         let msg = payload.get("last_assistant_message").and_then(Value::as_str).filter(|s| !s.trim().is_empty())?;
         if is_machine_message(msg) {
@@ -148,12 +157,15 @@ pub fn normalize(agent: &str, payload: &Value, home: &Path) -> Option<(String, C
         clip_sentence(&strip_markdown(msg), 160)
     };
     let project = Path::new(&cwd).file_name().map(|s| s.to_string_lossy().to_string()).filter(|s| !s.is_empty()).unwrap_or(cwd.clone());
+    let host_bundle = platform::host_bundle_id();
     let ctx = Context {
         agent: agent_name(agent).to_string(),
         agent_id: agent.to_string(),
         project: project.clone(),
         session: session_title(agent, payload, home).unwrap_or(project),
-        host_bundle: platform::host_bundle_id(),
+        device: platform::device_name().unwrap_or_default(),
+        app: source_app(&host_bundle, agent),
+        host_bundle,
         session_id: payload.get("session_id").and_then(Value::as_str).map(String::from),
         tool_name: payload.get("tool_name").and_then(Value::as_str).map(String::from),
         tool_use_id: tool_use_id(payload),
@@ -173,6 +185,12 @@ fn last_json_line_with(path: &Path, needle: &[u8]) -> Option<Value> {
     let start = data[..pos].iter().rposition(|&b| b == b'\n').map(|i| i + 1).unwrap_or(0);
     let end = data[pos..].iter().position(|&b| b == b'\n').map(|i| pos + i).unwrap_or(data.len());
     serde_json::from_slice(&data[start..end]).ok()
+}
+
+/// 来源 App 的显示名；系统里查不到名字时用 bundle id。
+fn source_app(host: &str, agent: &str) -> String {
+    let bundle = platform::source_bundle(host, agent);
+    platform::app_name(bundle).unwrap_or_else(|| bundle.to_string())
 }
 
 /// 对话名：Claude 取 transcript 里的自定义标题/自动标题；Codex 取 session_index.jsonl 里的 thread_name。
@@ -219,12 +237,15 @@ pub fn render(tpl: &str, ctx: &Context) -> String {
 
 /// 面板「发送测试」「模拟触发」用的示例 context。
 pub fn sample_context(agent: &str, event: &str) -> Context {
+    let host_bundle = platform::agent_app_bundle(agent).to_string();
     Context {
         agent: agent_name(agent).to_string(),
         agent_id: agent.to_string(),
         project: "AgentPulse".into(),
         session: "AgentPulse 测试对话".into(),
-        host_bundle: platform::agent_app_bundle(agent).to_string(),
+        device: platform::device_name().unwrap_or_default(),
+        app: source_app(&host_bundle, agent),
+        host_bundle,
         detail: if event == "permission_request" { "「安装依赖」 · Bash: npm install".into() } else { "这是一条测试提醒，说明这个提醒方式可以正常工作。".into() },
         time: chrono::Local::now().format("%H:%M:%S").to_string(),
         ..Default::default()
@@ -357,6 +378,28 @@ mod tests {
         assert!(normalize("codex", &json!({"hook_event_name": "Stop", "stop_hook_active": true}), h.path()).is_none());
         assert!(normalize("claude", &json!({"hook_event_name": "PreToolUse"}), h.path()).is_none());
         assert!(normalize("claude", &json!({"hook_event_name": "UserPromptSubmit"}), h.path()).is_none());
+    }
+
+    #[test]
+    fn stop_with_running_background_tasks_is_not_task_complete() {
+        let h = home();
+        // 还有子代理/后台命令/监视器在跑：这一轮 Stop 只是回复完了，任务没做完，不该提醒。
+        assert!(normalize("claude", &json!({"hook_event_name": "Stop",
+            "background_tasks": [{"id": "a1", "type": "subagent", "status": "running"}]}), h.path()).is_none());
+        // 空数组、字段缺失，或者 Codex（没有这个字段）都不受影响，照常算任务完成。
+        assert!(normalize("claude", &json!({"hook_event_name": "Stop", "background_tasks": []}), h.path()).is_some());
+        assert!(normalize("claude", &json!({"hook_event_name": "Stop"}), h.path()).is_some());
+    }
+
+    #[test]
+    fn context_names_device_and_source_app() {
+        let h = home();
+        let (_, ctx) = normalize("claude", &json!({"hook_event_name": "Stop", "cwd": "/x/p"}), h.path()).unwrap();
+        // 认不出宿主时按工具自己的 App 算，系统里查不到名字时退回 bundle id，所以总有值
+        assert!(!ctx.app.is_empty());
+        assert!(!sample_context("codex", "task_complete").app.is_empty());
+        #[cfg(target_os = "macos")]
+        { assert!(!ctx.device.is_empty(), "macOS 总有电脑名称"); }
     }
 
     #[test]

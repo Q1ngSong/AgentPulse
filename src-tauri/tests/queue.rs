@@ -302,6 +302,23 @@ fn batches_do_not_mix_source_apps() {
 }
 
 #[test]
+fn merged_message_names_project_only_when_shared() {
+    for (projects, expected) in [(["p1", "p1"], "p1"), (["p1", "p2"], "")] {
+        let h = harness();
+        let cfg = cfg_with(&h, &[target(1, true)]);
+        fill(&h, 2, &cfg, 61.0);
+        let mut items = queue::load_queue(&h.rt.paths);
+        for (it, project) in items.iter_mut().zip(projects) { it.ctx.project = project.into(); }
+        queue::save_queue(&h.rt.paths, &items).unwrap();
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let record = seen.clone();
+        *h.behaviour.lock().unwrap() = Box::new(move |_, msg| { record.lock().unwrap().push(msg.ctx.project.clone()); Ok(None) });
+        queue::run_queue_worker(&h.rt).unwrap();
+        assert_eq!(*seen.lock().unwrap(), vec![expected.to_string()], "{projects:?}");
+    }
+}
+
+#[test]
 fn focus_clears_both_tools_in_that_app_only() {
     let h = harness();
     let mut cfg = cfg_with(&h, &[target(5, true)]);

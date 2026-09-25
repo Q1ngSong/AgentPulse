@@ -61,7 +61,8 @@ pub fn set_app(app: AppHandle) {
     let _ = APP.set(app);
 }
 
-/// 只在 IPC 工作线程调用。等待系统接受请求；native 从接受时起独立计时，5 秒后清除此条通知。
+/// 只在 IPC 工作线程调用，等待系统接受请求。停留时间由 macOS 的通知样式（临时 / 持续）决定；
+/// App 只在返回来源时清除（dismiss_source）。
 pub fn send(title: &str, body: &str, host: &str, source_host: &str) -> Result<(), String> {
     let cstring = |s: &str| CString::new(s).map_err(|_| "通知内容不能包含 NUL 字符".to_string());
     let id = cstring(&uuid::Uuid::new_v4().to_string())?;

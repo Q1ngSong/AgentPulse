@@ -267,7 +267,10 @@ pub fn run_pass(rt: &Runtime, states: &mut HashMap<(String, String), State>) -> 
                 if batch.is_empty() { continue; }
                 let target = current.unwrap();
                 let (event, title, body) = merged_message(&batch);
-                let msg = Message { event, title: title.clone(), body: body.clone(), agent: agent.clone(), ctx: batch.last().unwrap().ctx.clone() };
+                let mut ctx = batch.last().unwrap().ctx.clone();
+                // 同一批来自同一台设备、同一个 App；分属不同项目时来源行只写设备和 App，各条的对话名在正文里。
+                if batch.iter().any(|it| it.ctx.project != ctx.project) { ctx.project.clear(); }
+                let msg = Message { event, title: title.clone(), body: body.clone(), agent: agent.clone(), ctx };
                 let mut r = rt.channels.send_one(&target, &msg);
                 let mut head = format!("{} 分钟内无人处理，{}", delay_minutes(&target), if batch.len() > 1 { format!("合并 {} 条发送", batch.len()) } else { "已发送".into() });
                 if !r.ok {

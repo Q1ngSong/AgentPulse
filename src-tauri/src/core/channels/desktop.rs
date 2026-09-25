@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use super::{Channel, Message};
 use crate::core::config::Target;
 use crate::core::paths::{FileLock, Paths};
-use crate::core::platform::agent_app_bundle;
+use crate::core::platform::source_bundle;
 
 pub const APP_BUNDLE_ID: &str = "com.agentpulse.desktop";
 pub const BACKGROUND_ARG: &str = "--background-notifications";
@@ -124,11 +124,7 @@ pub fn send_to_app(paths: &Paths, req: &Value, launch_if_needed: bool) -> Result
 
 impl Channel for Desktop {
     fn send(&self, target: &Target, message: &Message) -> Result<Option<String>, String> {
-        let source_host = if !message.ctx.host_bundle.is_empty() {
-            message.ctx.host_bundle.as_str()
-        } else {
-            agent_app_bundle(&message.agent)
-        };
+        let source_host = source_bundle(&message.ctx.host_bundle, &message.agent);
         // 点击动作与来源分开：只关闭的卡片也能在用户手动回到来源时一起清除。
         let host = if target.str("click") == "close" { "" } else { source_host };
         let mode = match target.str("mode") { "" => "system", m => m };

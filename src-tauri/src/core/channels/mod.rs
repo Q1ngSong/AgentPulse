@@ -28,6 +28,15 @@ pub struct Message {
     pub ctx: Context,
 }
 
+/// 飞书卡片的正文：第一行写来源「📍 设备 · App · 项目」，多台设备推到同一个群时靠它分辨；
+/// 取不到的部分跳过，全都没有就只发原正文。微信模板按字段分行显示，见 wxtest::template_data。
+pub fn external_body(message: &Message) -> String {
+    let ctx = &message.ctx;
+    let source: Vec<&str> = [&ctx.device, &ctx.app, &ctx.project].into_iter().map(String::as_str).filter(|s| !s.is_empty()).collect();
+    let source = if source.is_empty() { String::new() } else { format!("📍 {}", source.join(" · ")) };
+    [source.as_str(), message.body.as_str()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("\n")
+}
+
 pub trait Channel: Send + Sync {
     fn send(&self, target: &Target, message: &Message) -> Result<Option<String>, String>;
 }
@@ -87,5 +96,22 @@ impl Registry {
         }
         r.ms = start.elapsed().as_millis() as u64;
         r
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn message(device: &str, app: &str, project: &str, body: &str) -> Message {
+        Message { body: body.into(), ctx: Context { device: device.into(), app: app.into(), project: project.into(), ..Default::default() }, ..Default::default() }
+    }
+
+    #[test]
+    fn external_body_starts_with_source_line() {
+        assert_eq!(external_body(&message("Mac mini", "Claude", "AgentPulse", "✅ 任务完成")), "📍 Mac mini · Claude · AgentPulse\n✅ 任务完成");
+        assert_eq!(external_body(&message("", "Claude", "", "正文")), "📍 Claude\n正文", "取不到的部分跳过");
+        assert_eq!(external_body(&message("Mac mini", "Claude", "p", "")), "📍 Mac mini · Claude · p");
+        assert_eq!(external_body(&message("", "", "", "正文")), "正文", "旧队列条目没有来源信息，照旧只发正文");
     }
 }

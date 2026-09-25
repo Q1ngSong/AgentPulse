@@ -146,7 +146,7 @@
     ]
   },
   "post_fix_app_build": {
-    "app": "/Volumes/DataLayer/YuwanZ-APPs/AgentPulse/src-tauri/target/release/bundle/macos/AgentPulse.app",
+    "app": "src-tauri/target/release/bundle/macos/AgentPulse.app",
     "hook_sha256": "10ccb5665d3b83be9268b16b14cbc634032f928d653355c2ada2f522dc56811e",
     "signature_verification": "passed",
     "installed": false,

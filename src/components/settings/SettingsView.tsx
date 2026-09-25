@@ -100,7 +100,7 @@ export const SettingsView = forwardRef<SettingsHandle, { state: State; tool: Too
               {i.agent === "codex" && <div className="mt-2">Codex 还需信任 Hook；点接入或重新接入时会请求确认。以上标记仅表示配置已写入，实际提醒需用新会话验证。</div>}</>}
             right={<>{i.installed ? <><Button variant="outline" size="sm" disabled={!!integrationBusy} onClick={() => install(i.agent)}>{integrationBusy?.agent === i.agent ? integrationBusy.label : "重新接入"}</Button><Button variant="ghost" size="sm" className="text-red-500" disabled={!!integrationBusy} onClick={() => uninstall(i.agent)}>断开</Button></> : <Button size="sm" disabled={!i.tool_dir_exists || !!integrationBusy} onClick={() => install(i.agent)}>{integrationBusy?.agent === i.agent ? integrationBusy.label : "接入"}</Button>}
               <Button variant="ghost" size="icon" className="h-8 w-8" title="打开配置文件位置" onClick={() => api.reveal(i.agent)}><FolderOpen className="h-4 w-4" /></Button></>} />))}
-        <div className="px-0.5 text-xs text-muted-foreground">接入和断开都会先备份原配置文件，只改动 AgentPulse 自己的条目。Hook 程序：{state.hook_binary}{state.hook_binary_exists ? "" : "（未找到）"}。工具只在会话启动时读取 Hook，接入后需要新开会话。</div>
+        <div className="px-0.5 text-xs text-muted-foreground">接入和断开都会先备份原配置文件，只改动 AgentPulse 自己的条目。Hook 程序：{state.hook_binary}{state.hook_binary_exists ? "" : "（未找到）"}。每个会话启动时读取一次 Hook 配置，接入后要新开会话才生效。</div>
       </>)}
 
       {tab === "templates" && (

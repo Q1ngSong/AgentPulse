@@ -62,3 +62,21 @@ pub fn idle_seconds() -> f64 {
 pub fn screen_locked() -> bool {
     run("ioreg", &["-n", "Root", "-d1"]).map(|s| s.contains("\"CGSSessionScreenIsLocked\"=Yes")).unwrap_or(false)
 }
+
+/// 系统设置 › 通用 › 关于本机 › 名称（scutil --get ComputerName 读的也是它）。
+/// 在进程内查询，不起子进程：子进程在 exec 前会短暂持有其他线程的文件锁，锁因此晚释放。
+pub fn device_name() -> Option<String> {
+    use objc2::{msg_send, rc::{autoreleasepool, Retained}, runtime::AnyObject};
+    #[link(name = "SystemConfiguration", kind = "framework")]
+    extern "C" {
+        fn SCDynamicStoreCopyComputerName(store: *const std::ffi::c_void, encoding: *mut u32) -> *mut AnyObject;
+    }
+    autoreleasepool(|_| unsafe {
+        // Copy 规则：返回的 CFString 归调用方，CFString 与 NSString 桥接，交给 Retained 离开时释放。
+        let computer = Retained::from_raw(SCDynamicStoreCopyComputerName(std::ptr::null(), std::ptr::null_mut()))?;
+        let text: *const std::ffi::c_char = msg_send![&*computer, UTF8String];
+        if text.is_null() { return None; }
+        let name = std::ffi::CStr::from_ptr(text).to_str().ok()?.trim().to_string();
+        (!name.is_empty()).then_some(name)
+    })
+}

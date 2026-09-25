@@ -11,7 +11,6 @@ static NSString *const APHostKey = @"agentpulse.host";
 static NSString *const APSourceKey = @"agentpulse.source_host";
 static NSString *const APReturnAction = @"agentpulse.return";
 static NSString *const APReturnCategory = @"agentpulse.source";
-static const int64_t APNotificationLifetime = 5 * NSEC_PER_SEC;
 static APResponseCallback responseCallback;
 static APLaunchCallback launchCallback;
 static APDefaultClickCallback defaultClickCallback;
@@ -152,13 +151,6 @@ void ap_notifications_send(const char *identifier, const char *title, const char
                 UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:requestID
                     content:content trigger:nil];
                 [notificationCenter addNotificationRequest:request withCompletionHandler:^(NSError *error) {
-                    if (!error) {
-                        // 系统接受请求后开始计时；只清理这条唯一 ID，稍后到达的新通知有自己的计时器。
-                        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, APNotificationLifetime), dispatch_get_main_queue(), ^{
-                            [notificationCenter removePendingNotificationRequestsWithIdentifiers:@[requestID]];
-                            [notificationCenter removeDeliveredNotificationsWithIdentifiers:@[requestID]];
-                        });
-                    }
                     completion(context, error ? error.localizedDescription.UTF8String : NULL);
                 }];
             }];

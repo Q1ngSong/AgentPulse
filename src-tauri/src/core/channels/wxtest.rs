@@ -1,4 +1,5 @@
-//! 微信（公众平台测试号）：直接调用微信接口发模板消息。模板需含 {{title.DATA}} {{body.DATA}} {{time.DATA}}。
+//! 微信（公众平台测试号）：直接调用微信接口发模板消息。
+//! 微信只显示模板里「名称：{{字段.DATA}}」这样的行，可用字段 device、app、project、title、body、time。
 use std::fs;
 
 use serde_json::{json, Map, Value};
@@ -52,8 +53,7 @@ impl Channel for WxTest {
         if !missing.is_empty() {
             return Err(format!("ValueError: 未填写：{}", missing.join("、")));
         }
-        let data = json!({"title": {"value": message.title}, "body": {"value": if message.body.is_empty() { " " } else { &message.body }},
-            "time": {"value": chrono::Local::now().format("%m-%d %H:%M:%S").to_string()}});
+        let data = template_data(message, &chrono::Local::now().format("%m-%d %H:%M:%S").to_string());
         let (mut errors, mut sent) = (Vec::new(), Vec::new());
         for openid in &openids {
             for attempt in 0..2 {
@@ -80,6 +80,15 @@ impl Channel for WxTest {
     }
 }
 
+/// 模板消息的数据：设备、应用、项目各占一个字段，模板里各写一行「名称：{{字段.DATA}}」。
+/// 微信会丢掉不带名称的行、可能截断过长的值，所以不把来源拼进正文。
+fn template_data(message: &Message, time: &str) -> Value {
+    let ctx = &message.ctx;
+    let or_dash = |s: &str| if s.is_empty() { "—".to_string() } else { s.to_string() };
+    json!({"device": {"value": or_dash(&ctx.device)}, "app": {"value": or_dash(&ctx.app)}, "project": {"value": or_dash(&ctx.project)},
+        "title": {"value": message.title}, "body": {"value": if message.body.is_empty() { " " } else { &message.body }}, "time": {"value": time}})
+}
+
 fn response_code(data: &Value) -> Result<i64, String> {
     data.get("errcode").and_then(Value::as_i64)
         .ok_or_else(|| "微信响应缺少有效的 errcode，未确认发送成功".into())
@@ -96,5 +105,19 @@ mod tests {
         for value in [json!({}), json!({"errcode": null}), json!({"errcode": "0"}), json!(false)] {
             assert!(response_code(&value).is_err(), "{value}");
         }
+    }
+
+    #[test]
+    fn template_data_puts_each_identifier_in_its_own_field() {
+        let mut message = Message { title: "Claude Code: 修 bug".into(), body: "✅ 任务完成 · 好了".into(), ..Default::default() };
+        (message.ctx.device, message.ctx.app, message.ctx.project) = ("Mac mini".into(), "Claude".into(), "AgentPulse".into());
+        let data = template_data(&message, "09-25 15:40:27");
+        for (key, value) in [("device", "Mac mini"), ("app", "Claude"), ("project", "AgentPulse"),
+            ("title", "Claude Code: 修 bug"), ("body", "✅ 任务完成 · 好了"), ("time", "09-25 15:40:27")] {
+            assert_eq!(data[key]["value"], value, "{key}");
+        }
+        // 取不到的来源写成「—」，不留空行；空正文沿用原来的空格
+        let data = template_data(&Message::default(), "t");
+        assert_eq!((data["device"]["value"].as_str(), data["project"]["value"].as_str(), data["body"]["value"].as_str()), (Some("—"), Some("—"), Some(" ")));
     }
 }

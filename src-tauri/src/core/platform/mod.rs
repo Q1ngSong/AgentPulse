@@ -13,6 +13,11 @@ pub fn agent_app_bundle(agent: &str) -> &'static str {
     AGENT_APP_BUNDLES.iter().find(|(a, _)| *a == agent).map(|(_, b)| *b).unwrap_or("")
 }
 
+/// 提醒来自哪个 App：环境变量认不出宿主时，按工具自己的桌面 App 算。
+pub fn source_bundle<'a>(host: &'a str, agent: &str) -> &'a str {
+    if host.is_empty() { agent_app_bundle(agent) } else { host }
+}
+
 /// 当前进程所在的宿主 App 的 bundle id；识别不出返回空字符串。
 pub fn host_bundle_id() -> String {
     if let Ok(bid) = std::env::var("__CFBundleIdentifier") {
@@ -47,6 +52,14 @@ pub fn app_name(bundle_id: &str) -> Option<String> {
     { let _ = bundle_id; None }
 }
 
+/// 本机名称：macOS 取系统设置里的「电脑名称」，用户改名后跟着变；取不到返回 None。
+pub fn device_name() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    { return macos::device_name(); }
+    #[allow(unreachable_code)]
+    None
+}
+
 /// 优先使用桌面版自带 Codex，再查 CLI 安装位置；不启动桌面窗口。
 pub fn codex_binary() -> Result<std::path::PathBuf, String> {
     #[cfg(target_os = "macos")]
@@ -77,5 +90,18 @@ impl HostProbe for SystemProbe {
         { return macos::screen_locked(); }
         #[allow(unreachable_code)]
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_bundle_falls_back_to_the_agent_app() {
+        assert_eq!(source_bundle("com.apple.Terminal", "codex"), "com.apple.Terminal");
+        assert_eq!(source_bundle("", "codex"), "com.openai.codex");
+        assert_eq!(source_bundle("", "claude"), "com.anthropic.claudefordesktop");
+        assert_eq!(source_bundle("", "unknown"), "");
     }
 }

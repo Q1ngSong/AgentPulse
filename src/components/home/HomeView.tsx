@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Bell, Clock, Copy, GripVertical, Image as ImageIcon, Lock, MessageSquare, Monitor, Pencil, Plug, Plus, Send, Trash2, Volume2, CheckCircle2, Zap } from "lucide-react";
+import { AlertTriangle, Bell, Clock, Copy, GripVertical, Lock, MessageSquare, Monitor, Pencil, Plug, Plus, Send, Trash2, Volume2, CheckCircle2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -69,21 +69,6 @@ export function HomeView({ state, tool, onEdit, onAdd, confirm }: { state: State
       if (x) x.ok ? toast.success(`${x.name}：已发送`, { description: x.info }) : toast.error(`${x.name}：发送失败`, { description: x.error });
     } catch (e) { toast.error("测试失败", { description: String(e) }); }
   };
-  const icon = state.icons[tool];
-  const pickIcon = () => {
-    const i = document.createElement("input");
-    i.type = "file"; i.accept = ".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif";
-    i.onchange = async () => {
-      const f = i.files?.[0]; if (!f) return;
-      try { await api.uploadToolIcon(tool, f.name, new Uint8Array(await f.arrayBuffer())); qc.invalidateQueries({ queryKey: ["state"] }); toast.success("已上传"); }
-      catch (e) { toast.error("上传失败", { description: String(e) }); }
-    };
-    i.click();
-  };
-  const removeIcon = async () => {
-    try { await api.deleteToolIcon(tool); qc.invalidateQueries({ queryKey: ["state"] }); toast.success("已恢复自动图标"); }
-    catch (e) { toast.error("删除失败", { description: String(e) }); }
-  };
   const drop = () => {
     if (!drag || drag.over === null || drag.over === drag.from) { setDrag(null); return; }
     const list = structuredClone(targets); const [m] = list.splice(drag.from, 1); list.splice(drag.over > drag.from ? drag.over - 1 : drag.over, 0, m);
@@ -107,16 +92,6 @@ export function HomeView({ state, tool, onEdit, onAdd, confirm }: { state: State
       {!state.hook_binary_exists && (
         <div className="flex items-center gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-[13px] text-amber-900"><AlertTriangle className="h-4 w-4" />找不到 Hook 程序 {state.hook_binary}，接入会失败</div>
       )}
-      <div className="flex items-center gap-2.5 rounded-lg border px-3.5 py-2.5 text-[13px]">
-        <div className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-md border bg-muted">
-          {icon ? <img src={icon} alt="" className="h-full w-full object-cover" /> : <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />}
-        </div>
-        <span className="text-muted-foreground">悬浮窗图标：{icon ? "自定义" : `未设置，自动使用来源 App 的图标`}</span>
-        <span className="flex-1" />
-        <Button size="sm" variant="ghost" onClick={pickIcon}>{icon ? "更换" : "上传自定义图标"}</Button>
-        {icon && <Button size="sm" variant="ghost" className="hover:bg-red-50 hover:text-red-500" onClick={removeIcon}>删除</Button>}
-      </div>
-
       {targets.length === 0 ? (
         <div className="rounded-xl border-[1.5px] border-dashed p-10 text-center">
           <div className="mx-auto mb-2.5 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground"><Bell className="h-6 w-6" /></div>
@@ -148,7 +123,7 @@ export function HomeView({ state, tool, onEdit, onAdd, confirm }: { state: State
           </div>
         );
       })}
-      <div className="px-0.5 text-xs text-muted-foreground"><Zap className="mr-1 inline h-3 w-3" />工具只在会话启动时读取 Hook，接入后需要新开会话。</div>
+      <div className="px-0.5 text-xs text-muted-foreground"><Zap className="mr-1 inline h-3 w-3" />每个会话启动时读取一次 Hook 配置，接入后要新开会话才生效。</div>
     </div>
   );
 }
